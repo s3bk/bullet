@@ -5,6 +5,6 @@ authors = ["Sebastian Köln <sebk@rynx.org>"]
 
 [dependencies]
 rand = "*"
-
-[dependencies.simd]
-path = "../simd"
+tuple = "*"
+num = "*"
+#simd = "*"

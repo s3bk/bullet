@@ -1,7 +1,7 @@
 use std::ops::{Add, Sub, Mul, Div};
 use std::cmp::PartialOrd;
 use std::fmt;
-use simd::{Simd, Basic, Bool};
+
 use rand::{Rand, Rng};
 use rand::distributions::{Sample, IndependentSample};
 
@@ -49,7 +49,7 @@ macro_rules! first_i {
 macro_rules! first_e {
     ($a:expr, $b:tt) => ($a)
 }
-
+/*
 macro_rules! impl_simd {
     ($name:ident : $Tuple:ident( $($n:ident,)* ) ) => (
         impl Real for $name {
@@ -89,10 +89,12 @@ impl_simd!(f64x2 : T2(a,b,));
 use simd::x86::avx::{f32x8, f64x4};
 impl_simd!(f32x8 : T8(a,b,c,d, e,f,g,h,));
 impl_simd!(f64x4 : T4(a,b,c,d,));
+*/
 
 use tuple::*;
 macro_rules! tuple_init {
-    ($($Tuple:ident { $($idx:tt -> $T:ident,)* } )*) => ($(
+    ($($Tuple:ident { $($T:ident . $idx:tt),* } )*) => ($(
+    
         impl<$($T,)*> Real for $Tuple<$($T,)*>
         where $( $T: Real + 'static, )*
         {
@@ -109,6 +111,7 @@ macro_rules! tuple_init {
                 $Tuple( $( first_e!(e.clone(), $idx), )* )
             }
         }
+        
         /*
         impl<$($T,)*> Rand for $Tuple<$($T,)*>
         where $( $T: Rand, )*

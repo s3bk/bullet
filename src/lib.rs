@@ -1,14 +1,16 @@
 #![feature(associated_consts)]
 #![feature(const_fn)]
 #![feature(concat_idents)]
+#![feature(trace_macros)]
 
-extern crate simd;
+//extern crate simd;
 extern crate rand;
+extern crate tuple;
 
-use simd::{Simd, Basic};
-use simd::x86::avx::*;
+//use simd::x86::avx::*;
 use std::ops::{Add, Mul};
-
+use tuple::*;
+/*
 #[inline(always)]
 fn poly<S>(arr: &[S::Elem], x: S) -> S where 
     S: Simd + Basic + Mul<Output=S> + Add<Output=S> + Clone,
@@ -59,10 +61,7 @@ impl<S> Trig<f64> for S where
         ], self.clone() * self)
     }
 }
-
-#[macro_export]
-#[macro_use]
-pub mod tuple;
+*/
 pub mod integrate;
 pub mod real;
 
@@ -70,11 +69,11 @@ pub mod prelude {
     pub use integrate::*;
     pub use real::*;
     pub use tuple::*;
-    pub use super::Trig;
+  //  pub use super::Trig;
 }
 
 #[test]
 fn test_cos() {
     use std::f64::consts::PI;
-    println!("{:?}", f64x4::new(0.0, -PI, PI, PI/2.0).cos());
+  //  println!("{:?}", f64x4::new(0.0, -PI, PI, PI/2.0).cos());
 }
