@@ -3,17 +3,17 @@
 #![feature(concat_idents)]
 #![feature(trace_macros)]
 
-//extern crate simd;
+extern crate simd;
 extern crate rand;
 extern crate tuple;
 
-//use simd::x86::avx::*;
+use simd::x86::avx::*;
 use std::ops::{Add, Mul};
 use tuple::*;
 /*
 #[inline(always)]
 fn poly<S>(arr: &[S::Elem], x: S) -> S where 
-    S: Simd + Basic + Mul<Output=S> + Add<Output=S> + Clone,
+    S: Splat<S::Elem> + Mul<Output=S> + Add<Output=S> + Clone,
     S::Elem: Clone
 {
     let mut t = S::splat(arr[0].clone());
