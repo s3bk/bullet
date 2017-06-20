@@ -1,0 +1,24 @@
+use std::str::FromStr;
+use expr::*;
+use self::Expr::*;
+
+grammar;
+
+pub Expr: Node = {
+    <l:Expr> "+" <r:Factor> => box Add(l, r),
+    <l:Expr> "-" <r:Factor> => box Sub(l, r),
+    Factor,
+};
+
+pub Factor: Node = {
+    <l:Factor> "*" <r:Term> => box Mul(l, r),
+    <l:Factor> "/" <r:Term> => box Div(l, r),
+    Term,
+};
+
+pub Term: Node = {
+    Num,
+    "(" <Expr> ")",
+};
+
+Num: Node = <s:r"[0-9]+"> => box Int(s.parse::<i32>().unwrap());

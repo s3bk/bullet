@@ -2,9 +2,18 @@
 name = "math"
 version = "0.1.0"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
+build = "build.rs"
 
 [dependencies]
 rand = "*"
-tuple = "*"
+tuple = { version = "*", features = ["simd"], git="https://github.com/s3bk/tuple.git" }
 num = "*"
 simd = "*"
+lalrpop-util = "*"
+regex = "*"
+fmath = { version = "*", git = "https://github.com/s3bk/fmath.git" }
+optimization = "*"
+env_logger = "*"
+
+[build-dependencies]
+lalrpop = "*"
