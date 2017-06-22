@@ -17,3 +17,7 @@ env_logger = "*"
 
 [build-dependencies]
 lalrpop = "*"
+
+[dev-dependencies]
+cpal = "*"
+futures = "*"
