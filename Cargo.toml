@@ -21,3 +21,5 @@ lalrpop = "*"
 [dev-dependencies]
 cpal = "*"
 futures = "*"
+hound = "*"
+termion = "*"

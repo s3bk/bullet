@@ -3,8 +3,8 @@ use prelude::*;
 
 pub struct Integration<V, F, N> {
     f:  F,
-    t:  N,
-    y:  V,
+pub t:  N,
+pub y:  V,
     h:  N,
     h_half: N,
     h_third: N,
