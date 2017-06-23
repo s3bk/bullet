@@ -1,8 +1,18 @@
 use std::ops::RangeInclusive;
 
 pub trait Cast<O>: Sized {
+    /// Try to represent self as O.
+    /// If possibe, return Some(Self as O) otherwhise None.
     fn cast(self) -> Option<O>;
+    
+    /// Try to represent self within the range r of O.
+    /// If possibe, return Some(self as O) otherwhise None.
     fn clip(self, r: RangeInclusive<O>) -> Option<O>;
+    
+    /// Represent self in the range r
+    /// If Self is not in r, choose the nearest end of r.
+    /// (returns r.start <= self as O <= r.end)
+    fn clamp(self, r: RangeInclusive<O>) -> O;
 }
 
 
@@ -14,12 +24,24 @@ macro_rules! impl_cast_unchecked {
                 fn cast(self) -> Option<$dst> {
                     Some(self as $dst)
                 }
+                #[inline(always)]
                 fn clip(self, r: RangeInclusive<$dst>) -> Option<$dst> {
                     let v = self as $dst;
                     if v >= r.start && v <= r.end {
                         Some(v)
                     } else {
                         None
+                    }
+                }
+                #[inline(always)]
+                fn clamp(self, r: RangeInclusive<$dst>) -> $dst {
+                    let v = self as $dst;
+                    if v < r.start {
+                        r.start
+                    } else if  v > r.end {
+                        r.end
+                    } else {
+                        v
                     }
                 }
             }
@@ -41,6 +63,7 @@ macro_rules! impl_cast_checked {
                         None
                     }
                 }
+                #[inline(always)]
                 fn clip(self, r: RangeInclusive<$dst>) -> Option<$dst> {
                     // if r.start < 0 (-> big nr), r.end >= 0, the check fails.
                     // if both < 0, the check fails too
@@ -49,6 +72,16 @@ macro_rules! impl_cast_checked {
                         Some(self as $dst)
                     } else {
                         None
+                    }
+                }
+                #[inline(always)]
+                fn clamp(self, r: RangeInclusive<$dst>) -> $dst {
+                    if self < r.start as $src {
+                        r.start
+                    } else if self > r.end as $src {
+                        r.end
+                    } else {
+                        self as $dst
                     }
                 }
             }
@@ -75,6 +108,7 @@ macro_rules! impl_cast_signed {
                         None
                     }
                 }
+                #[inline(always)]
                 fn clip(self, r: RangeInclusive<$unsigned>) -> Option<$unsigned> {
                     let start = r.start as $signed;
                     let u = self as $unsigned;
@@ -82,6 +116,17 @@ macro_rules! impl_cast_signed {
                         Some(u)
                     } else {
                         None
+                    }
+                }
+                #[inline(always)]
+                fn clamp(self, r: RangeInclusive<$unsigned>) -> $unsigned {                             
+                    let start = r.start as $signed;
+                    if start < 0 || self < start {
+                        r.start
+                    } else if self > r.end as $signed {
+                        r.end
+                    } else {
+                        self as $unsigned
                     }
                 }
             }
@@ -95,12 +140,24 @@ macro_rules! impl_cast_signed {
                         None
                     }
                 }
+                #[inline(always)]
                 fn clip(self, r: RangeInclusive<$signed>) -> Option<$signed> {
                     let s = self as $signed;
                     if s >= 0 && s >= r.start && s <= r.end {
                         Some(s)
                     } else {
                         None
+                    }
+                }
+                #[inline(always)]
+                fn clamp(self, r: RangeInclusive<$signed>) -> $signed {
+                    let s = self as $signed;
+                    if s < 0 || s > r.end {
+                        r.end
+                    } else if s < r.start {
+                        r.start
+                    } else {
+                        s
                     }
                 }
             }
@@ -115,6 +172,7 @@ macro_rules! impl_cast_id {
                 fn cast(self) -> Option<$b> {
                     Some(self as $b)
                 }
+                #[inline(always)]
                 fn clip(self, r: RangeInclusive<$b>) -> Option<$b> {
                     let b = self as $b;
                     if b >= r.start && b <= r.end {
@@ -123,18 +181,41 @@ macro_rules! impl_cast_id {
                         None
                     }
                 }
+                #[inline(always)]
+                fn clamp(self, r: RangeInclusive<$b>) -> $b {
+                    let b = self as $b;
+                    if b < r.start {
+                        r.start
+                    } else if b > r.end {
+                        r.end
+                    } else {
+                        b
+                    }
+                }
             }
             impl Cast<$a> for $b {
                 #[inline(always)]
                 fn cast(self) -> Option<$a> {
                     Some(self as $a)
                 }
+                #[inline(always)]
                 fn clip(self, r: RangeInclusive<$a>) -> Option<$a> {
                     let a = self as $a;
                     if a >= r.start && a <= r.end {
                         Some(a)
                     } else {
                         None
+                    }
+                }
+                #[inline(always)]
+                fn clamp(self, r: RangeInclusive<$a>) -> $a {
+                    let a = self as $a;
+                    if a < r.start {
+                        r.start
+                    } else if a > r.end {
+                        r.end
+                    } else {
+                        a
                     }
                 }
             }
@@ -214,6 +295,10 @@ macro_rules! impl_cast {
                     ( $( Some($t), )* ) => Some($Tuple($($t),*)),
                     _ => None
                 }
+            }
+            #[inline(always)]
+            fn clamp(self, r: RangeInclusive<$Tuple<$($t),*>>) -> $Tuple<$($t),*> {
+                $Tuple( $(self.$idx.clamp(r.start.$idx ... r.end.$idx)),* )
             }
         }
     )*)
