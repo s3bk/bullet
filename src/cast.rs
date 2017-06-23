@@ -7,12 +7,12 @@ pub trait Cast<O>: Sized {
     
     /// Try to represent self within the range r of O.
     /// If possibe, return Some(self as O) otherwhise None.
-    fn clip(self, r: RangeInclusive<O>) -> Option<O>;
+    fn cast_clipped(self, r: RangeInclusive<O>) -> Option<O>;
     
     /// Represent self in the range r
     /// If Self is not in r, choose the nearest end of r.
     /// (returns r.start <= self as O <= r.end)
-    fn clamp(self, r: RangeInclusive<O>) -> O;
+    fn cast_clamped(self, r: RangeInclusive<O>) -> O;
 }
 
 
@@ -25,7 +25,7 @@ macro_rules! impl_cast_unchecked {
                     Some(self as $dst)
                 }
                 #[inline(always)]
-                fn clip(self, r: RangeInclusive<$dst>) -> Option<$dst> {
+                fn cast_clipped(self, r: RangeInclusive<$dst>) -> Option<$dst> {
                     let v = self as $dst;
                     if v >= r.start && v <= r.end {
                         Some(v)
@@ -34,7 +34,7 @@ macro_rules! impl_cast_unchecked {
                     }
                 }
                 #[inline(always)]
-                fn clamp(self, r: RangeInclusive<$dst>) -> $dst {
+                fn cast_clamped(self, r: RangeInclusive<$dst>) -> $dst {
                     let v = self as $dst;
                     if v < r.start {
                         r.start
@@ -64,7 +64,7 @@ macro_rules! impl_cast_checked {
                     }
                 }
                 #[inline(always)]
-                fn clip(self, r: RangeInclusive<$dst>) -> Option<$dst> {
+                fn cast_clipped(self, r: RangeInclusive<$dst>) -> Option<$dst> {
                     // if r.start < 0 (-> big nr), r.end >= 0, the check fails.
                     // if both < 0, the check fails too
                     // if 0 > start > end, then it passes.
@@ -75,7 +75,7 @@ macro_rules! impl_cast_checked {
                     }
                 }
                 #[inline(always)]
-                fn clamp(self, r: RangeInclusive<$dst>) -> $dst {
+                fn cast_clamped(self, r: RangeInclusive<$dst>) -> $dst {
                     if self < r.start as $src {
                         r.start
                     } else if self > r.end as $src {
@@ -109,7 +109,7 @@ macro_rules! impl_cast_signed {
                     }
                 }
                 #[inline(always)]
-                fn clip(self, r: RangeInclusive<$unsigned>) -> Option<$unsigned> {
+                fn cast_clipped(self, r: RangeInclusive<$unsigned>) -> Option<$unsigned> {
                     let start = r.start as $signed;
                     let u = self as $unsigned;
                     if start >= 0 && self >= start && u <= r.end {
@@ -119,7 +119,7 @@ macro_rules! impl_cast_signed {
                     }
                 }
                 #[inline(always)]
-                fn clamp(self, r: RangeInclusive<$unsigned>) -> $unsigned {                             
+                fn cast_clamped(self, r: RangeInclusive<$unsigned>) -> $unsigned {                             
                     let start = r.start as $signed;
                     if start < 0 || self < start {
                         r.start
@@ -141,7 +141,7 @@ macro_rules! impl_cast_signed {
                     }
                 }
                 #[inline(always)]
-                fn clip(self, r: RangeInclusive<$signed>) -> Option<$signed> {
+                fn cast_clipped(self, r: RangeInclusive<$signed>) -> Option<$signed> {
                     let s = self as $signed;
                     if s >= 0 && s >= r.start && s <= r.end {
                         Some(s)
@@ -150,7 +150,7 @@ macro_rules! impl_cast_signed {
                     }
                 }
                 #[inline(always)]
-                fn clamp(self, r: RangeInclusive<$signed>) -> $signed {
+                fn cast_clamped(self, r: RangeInclusive<$signed>) -> $signed {
                     let s = self as $signed;
                     if s < 0 || s > r.end {
                         r.end
@@ -173,7 +173,7 @@ macro_rules! impl_cast_id {
                     Some(self as $b)
                 }
                 #[inline(always)]
-                fn clip(self, r: RangeInclusive<$b>) -> Option<$b> {
+                fn cast_clipped(self, r: RangeInclusive<$b>) -> Option<$b> {
                     let b = self as $b;
                     if b >= r.start && b <= r.end {
                         Some(b)
@@ -182,7 +182,7 @@ macro_rules! impl_cast_id {
                     }
                 }
                 #[inline(always)]
-                fn clamp(self, r: RangeInclusive<$b>) -> $b {
+                fn cast_clamped(self, r: RangeInclusive<$b>) -> $b {
                     let b = self as $b;
                     if b < r.start {
                         r.start
@@ -199,7 +199,7 @@ macro_rules! impl_cast_id {
                     Some(self as $a)
                 }
                 #[inline(always)]
-                fn clip(self, r: RangeInclusive<$a>) -> Option<$a> {
+                fn cast_clipped(self, r: RangeInclusive<$a>) -> Option<$a> {
                     let a = self as $a;
                     if a >= r.start && a <= r.end {
                         Some(a)
@@ -208,7 +208,7 @@ macro_rules! impl_cast_id {
                     }
                 }
                 #[inline(always)]
-                fn clamp(self, r: RangeInclusive<$a>) -> $a {
+                fn cast_clamped(self, r: RangeInclusive<$a>) -> $a {
                     let a = self as $a;
                     if a < r.start {
                         r.start
@@ -290,15 +290,15 @@ macro_rules! impl_cast {
                 }
             }
             #[inline(always)]
-            fn clip(self, r: RangeInclusive<$Tuple<$($t),*>>) -> Option<$Tuple<$($t),*>> {
-                match ( $(self.$idx.clip(r.start.$idx ... r.end.$idx), )* ) {
+            fn cast_clipped(self, r: RangeInclusive<$Tuple<$($t),*>>) -> Option<$Tuple<$($t),*>> {
+                match ( $(self.$idx.cast_clipped(r.start.$idx ... r.end.$idx), )* ) {
                     ( $( Some($t), )* ) => Some($Tuple($($t),*)),
                     _ => None
                 }
             }
             #[inline(always)]
-            fn clamp(self, r: RangeInclusive<$Tuple<$($t),*>>) -> $Tuple<$($t),*> {
-                $Tuple( $(self.$idx.clamp(r.start.$idx ... r.end.$idx)),* )
+            fn cast_clamped(self, r: RangeInclusive<$Tuple<$($t),*>>) -> $Tuple<$($t),*> {
+                $Tuple( $(self.$idx.cast_clamped(r.start.$idx ... r.end.$idx)),* )
             }
         }
     )*)
