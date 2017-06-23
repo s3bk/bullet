@@ -7,6 +7,7 @@
 #![feature(i128_type)]
 #![feature(inclusive_range)]
 #![feature(inclusive_range_syntax)]
+#![feature(cfg_target_feature)]
 
 extern crate simd;
 extern crate rand;

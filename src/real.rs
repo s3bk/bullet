@@ -3,13 +3,16 @@ use std::ops::{Add, Sub, Mul, Div};
 use simd::{f32x4, bool32fx4, u32x4, i32x4};
 //impl_simd!(f32x4 : T4(a,b,c,d,));
 
+#[cfg(target_feature = "sse2")]
 use simd::x86::sse2::{f64x2, u64x2, i64x2};
 //impl_simd!(f64x2 : T2(a,b,));
 
+#[cfg(target_feature = "avx")]
 use simd::x86::avx::{f32x8, f64x4};
 //impl_simd!(f32x8 : T8(a,b,c,d, e,f,g,h,));
 //impl_simd!(f64x4 : T4(a,b,c,d,));
 
+#[cfg(target_feature = "sse2")]
 use simd::x86::sse2::Sse2F64x2;
 
 use rand::{Rand, Rng};
@@ -70,10 +73,17 @@ macro_rules! impl_real {
                 uniform01.ind_sample(rng)
             }
             #[inline(always)]
+            #[cfg(target_feature = "sse2")]
             fn clamp(self, min: Self, max: Self) -> Self {
                 let max_ = $s::splat(max);
                 let min_ = $s::splat(min);
                 $s::splat(self).max(min_).min(max_).extract(0) as Self
+            }
+            #[cfg(not(target_feature = "sse2"))]
+            fn clamp(self, min: Self, max: Self) -> Self {
+                if self < min { min }
+                else if self > max { max }
+                else { self }
             }
             fn lt(self, rhs: Self) -> Self::Bool { self < rhs }
             fn le(self, rhs: Self) -> Self::Bool { self <= rhs }
@@ -84,13 +94,16 @@ macro_rules! impl_real {
     )* )
 }
 
+#[cfg(target_feature = "sse2")]
 impl_real!(f32: f32x4, f64: f64x2);
 
+#[cfg(target_feature = "sse2")]
 impl Splat<f32> for f32x4 {
     fn splat(e: f32) -> f32x4 {
         f32x4::splat(e)
     }
 }
+#[cfg(target_feature = "sse2")]
 impl Real for f32x4 {
     const PI: Self = f32x4::splat(::std::f32::consts::PI);
     type Bool = bool32fx4;
