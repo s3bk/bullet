@@ -90,10 +90,10 @@ macro_rules! impl_cast_checked {
 }
 #[test]
 fn test_clip_checked() {
-    assert_eq!((-3f32).clip(0u16...5), None);
-    assert_eq!(8f32.clip(0u16...5), None);
-    assert_eq!(3f32.clip(0u16...5), Some(3));
-    assert_eq!(100f32.clip(0usize...1000), Some(100));
+    assert_eq!((-3f32).cast_clipped(0u16...5), None);
+    assert_eq!(8f32.cast_clipped(0u16...5), None);
+    assert_eq!(3f32.cast_clipped(0u16...5), Some(3));
+    assert_eq!(100f32.cast_clipped(0usize...1000), Some(100));
 }
 
 macro_rules! impl_cast_signed {

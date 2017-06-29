@@ -34,6 +34,7 @@ pub trait Real:
     
     fn uniform01<R: Rng>(rng: &mut R) -> Self;
     
+    /// if self exeeds at, subtract span
     fn wrap(self, at: Self, span: Self) -> Self;
     
     fn broadcast<O>(self) -> O where O: Splat<Self> {

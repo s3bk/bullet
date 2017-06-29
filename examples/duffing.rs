@@ -36,7 +36,8 @@ fn main() {
         duffing(7.72, 0.2, 1.0, 0.0, 1.0), // the function to integrate
         T2(1.0, 1.0), // initial value
         0.0, // inital time
-        1.0e-3 // step size
+        1.0e-3, // step size,
+        f32::PI // wrap point for t
     ).take(100) {
         println!("{:?}", p);
     }

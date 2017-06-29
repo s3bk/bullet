@@ -16,9 +16,18 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+#[derive(Copy, Clone, Debug)]
+struct DuffingParams {
+    epsilon:    f32,
+    lambda:     f32,
+    omega:      f32,
+    alpha:      f32,
+    beta:       f32
+}
+
 #[allow(non_snake_case)]
 #[inline]
-fn duffing(ɛ: f32, λ: f32, Ω: f32, α: f32, β: f32)
+fn duffing(p: DuffingParams)
  -> impl Fn(f32, T2<f32, f32>) -> T2<f32, f32>
 {
     use std::intrinsics::{fmul_fast, cosf32};
@@ -26,9 +35,9 @@ fn duffing(ɛ: f32, λ: f32, Ω: f32, α: f32, β: f32)
         unsafe {
             T2(
                 s.1,
-                fmul_fast(ɛ, cosf32(fmul_fast(Ω, t)))
-                - fmul_fast(λ, s.1)
-                - fmul_fast(s.0, α + fmul_fast(fmul_fast(s.0, s.0), β))
+                fmul_fast(p.epsilon, cosf32(fmul_fast(p.omega, t)))
+                - fmul_fast(p.lambda, s.1)
+                - fmul_fast(s.0, p.alpha + fmul_fast(fmul_fast(s.0, s.0), p.beta))
             )
         }
     }
@@ -43,14 +52,22 @@ fn main() {
     };
     let mut writer = hound::WavWriter::create("duffing.wav", spec).unwrap();
     
+    let params = DuffingParams {
+        epsilon: 10.446971,
+        lambda: 0.00013858214,
+        omega: 3.2886522,
+        alpha: 0.000000030056544,
+        beta: 64.18658
+    };
     let mut data_source = Integration::new(
-        duffing(7.52, 0.2, 1.0, 0.0, 1.0), // the function to integrate
+        duffing(params), // the function to integrate
         T2(1.0, 1.0), // initial value
         0.0, // inital time
-        440. / spec.sample_rate as f32 // step size
-    ).map(|v| v * T2(0.25, 0.16666));
+        440. / spec.sample_rate as f32, // step size,
+        f32::PI / params.omega
+    ).map(|v| v * T2(0.2, 0.05));
     
-    for value in data_source.take(spec.sample_rate as usize * 60) {
+    for value in data_source.take(spec.sample_rate as usize * 600) {
         let value: T2<i16, i16> = value.map(|f| 
             f * (std::i16::MAX as f32)
         ).cast().unwrap();

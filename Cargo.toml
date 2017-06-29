@@ -1,6 +1,6 @@
 [package]
 name = "math"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
 build = "build.rs"
 
@@ -19,7 +19,6 @@ env_logger = "*"
 lalrpop = "*"
 
 [dev-dependencies]
-cpal = "*"
-futures = "*"
+jack = "*"
 hound = "*"
 termion = "*"

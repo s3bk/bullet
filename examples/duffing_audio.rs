@@ -1,12 +1,6 @@
-#![feature(non_ascii_idents)]
-#![feature(conservative_impl_trait)]
-#![feature(core_intrinsics)]
-#![feature(box_syntax)]
-
 extern crate tuple;
 extern crate math;
-extern crate cpal;
-extern crate futures;
+extern crate jack;
 extern crate termion;
 
 
@@ -14,24 +8,18 @@ use tuple::{T2, TupleElements};
 use math::integrate::Integration;
 use math::real::Real;
 use math::cast::Cast;
-use futures::stream::Stream;
-use futures::task;
-use futures::task::Executor;
-use futures::task::Run;
 
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::io::Read;
-
-struct MyExecutor;
-
-impl Executor for MyExecutor {
-    fn execute(&self, r: Run) {
-        r.run();
-    }
-}
+use termion::event::Key;
+use termion::input::TermRead;
+use termion::raw::IntoRawMode;
+use jack::client::{Client, ClientOptions, ClosureProcessHandler, ProcessScope, AsyncClient};
+use jack::port::{AudioInSpec, AudioOutSpec, AudioOutPort, AudioInPort};
+use jack::jack_enums::JackControl;
 
 #[derive(Copy, Clone)]
 struct DuffingParams {
@@ -52,29 +40,40 @@ impl Default for DuffingParams {
         }
     }
 }
+fn main() {
+    let (tx, rx) = channel();
 
-#[allow(non_snake_case)]
-#[inline]
-fn duffing(p: DuffingParams)
- -> impl Fn(f32, T2<f32, f32>) -> T2<f32, f32>
-{
-    use std::intrinsics::{fmul_fast, cosf32};
-    move |t, s| {
-        unsafe {
-            T2(
-                s.1,
-                fmul_fast(p.epsilon, cosf32(fmul_fast(p.omega, t)))
-                - fmul_fast(p.lambda, s.1)
-                - fmul_fast(s.0, p.alpha + fmul_fast(fmul_fast(s.0, s.0), p.beta))
-            )
+    let (client, _) = Client::new("Duffing", ClientOptions::empty()).unwrap();
+    let port_in = client.register_port("duffing_in", AudioInSpec).unwrap();
+    let mut port_out_x = client.register_port("duffing_out_x", AudioOutSpec).unwrap();
+    let mut port_out_y = client.register_port("duffing_out_y", AudioOutSpec).unwrap();
+    
+    let dt = 880.0 / (client.sample_rate() as f32);
+    let mut x = T2(0.2, 0.2);
+    let mut p = DuffingParams::default();
+    let scale = 20.;
+    let scale_inv = 1.0 / scale;
+    let process = ClosureProcessHandler::new(move |_: &Client, ps: &ProcessScope| {
+        if let Ok(params) = rx.try_recv() {
+            p = params;
         }
-    }
-}
-
-fn control(tx: Sender<DuffingParams>) {
-    use termion::event::Key;
-    use termion::input::TermRead;
-    use termion::raw::IntoRawMode;
+    
+        let mut port_out_x = AudioOutPort::new(&mut port_out_x, ps);
+        let mut port_out_y = AudioOutPort::new(&mut port_out_y, ps);
+        let port_in = AudioInPort::new(&port_in, ps);
+        for (&sample_in, sample_out) in port_in.iter().zip(T2(port_out_x.iter_mut(), port_out_y.iter_mut())) {
+            let drive = sample_in * scale;
+            let dx_dt = T2(
+                x.1,
+                p.epsilon * drive - p.lambda * x.1 - x.0 * (p.alpha + (x.0 * x.0 * p.beta))
+            );
+            x += dx_dt * dt;
+            *sample_out.0 = (x.0 * scale_inv).clamp(-1.0, 1.0);
+            *sample_out.1 = (x.1 * scale_inv).clamp(-1.0, 1.0);
+        }
+        JackControl::Continue
+    });
+    let active_client = AsyncClient::new(client, (), process).unwrap();
     
     let mut stdin = std::io::stdin();
     let mut stdout = std::io::stdout().into_raw_mode().unwrap();
@@ -127,85 +126,4 @@ fn control(tx: Sender<DuffingParams>) {
         
         println!("selected: {}\r", name);
     }
-}
-
-fn main() {
-    let endpoint = cpal::get_default_endpoint().expect("Failed to get default endpoint");
-    let format = endpoint.get_supported_formats_list().unwrap()
-    .find(|fmt| fmt.samples_rate.0 == 48000 && fmt.channels.len() == 2)
-    .expect("Failed to get endpoint format");
-
-    let event_loop = cpal::EventLoop::new();
-    let executor = Arc::new(MyExecutor);
-
-    let (mut voice, stream) = cpal::Voice::new(&endpoint, &format, &event_loop).expect("Failed to create a voice");
-
-    println!("format: {:?}", format);
-    
-    let (tx, rx) = channel();
-    thread::spawn(move || control(tx));
-    
-    // Produce a sinusoid of maximum amplitude.
-    let samples_rate = format.samples_rate.0 as f32;
-    let mut integrator = Integration::new(
-        duffing(DuffingParams::default()), // the function to integrate
-        T2(1.0, 1.0), // initial value
-        0.0, // inital time
-        440. / samples_rate // step size
-    );
-    
-    voice.play();
-    task::spawn(stream.for_each(move |buffer| -> Result<_, ()> {
-        if let Ok(params) = rx.try_recv() {
-            let t = integrator.t;
-            let y = integrator.y;
-            
-            integrator = Integration::new(
-                duffing(params), // the function to integrate
-                y, // initial value
-                t, // inital time
-                440. / samples_rate // step size
-            );
-        }
-        let mut data_source = integrator.by_ref()
-        .map(|v| v * T2(0.1, 0.1));
-        
-        match buffer {
-            cpal::UnknownTypeBuffer::U16(mut buffer) => {
-                for (sample, value) in buffer.chunks_mut(format.channels.len()).zip(&mut data_source) {
-                    let value: T2<u16, u16> = value.map(|f| 
-                        (0.5 * f + 0.5) * (std::u16::MAX as f32)
-                    ).cast().unwrap();
-                    
-                    for (ch, out) in sample.iter_mut().enumerate() {
-                        *out = value.get(ch).cloned().unwrap_or(0);
-                    }
-                }
-            },
-
-            cpal::UnknownTypeBuffer::I16(mut buffer) => {
-                for (sample, value) in buffer.chunks_mut(format.channels.len()).zip(&mut data_source) {
-                    let value: T2<i16, i16> = value.map(|f|
-                        f * (std::i16::MAX as f32)
-                    ).cast().unwrap();
-                    
-                    for (ch, out) in sample.iter_mut().enumerate() {
-                        *out = value.get(ch).cloned().unwrap_or(0);
-                    }
-                }
-            },
-
-            cpal::UnknownTypeBuffer::F32(mut buffer) => {
-                for (sample, value) in buffer.chunks_mut(format.channels.len()).zip(&mut data_source) {
-                    for (ch, out) in sample.iter_mut().enumerate() {
-                        *out = value.get(ch).cloned().unwrap_or(0.0);
-                    }
-                }
-            },
-        };
-
-        Ok(())
-    })).execute(executor);
-
-    event_loop.run();
 }

@@ -8,10 +8,11 @@ pub y:  V,
     h:  N,
     h_half: N,
     h_third: N,
-    h_sixth: N
+    h_sixth: N,
+    wrap: N
 }
 impl<V, F, N> Integration<V, F, N> where N: Real {
-    pub fn new(f: F, s0: V, t0: N, dt: N) -> Integration<V, F, N> {
+    pub fn new(f: F, s0: V, t0: N, dt: N, wrap: N) -> Integration<V, F, N> {
         Integration {
             f:  f,
             t:  t0,
@@ -19,7 +20,8 @@ impl<V, F, N> Integration<V, F, N> where N: Real {
             h:  dt,
             h_half: dt * N::frac(1, 2),
             h_third: dt * N::frac(1, 3),
-            h_sixth: dt * N::frac(1, 6)
+            h_sixth: dt * N::frac(1, 6),
+            wrap:   wrap
         }
     }
 }
@@ -44,7 +46,7 @@ impl<V, F, N> Iterator for Integration<V, F, N> where
         let k4 = f(t + h, y + k3 * h.broadcast());
         
         self.y = y + (k1 + k4) * h_sixth.broadcast() + (k2 + k3) * h_third.broadcast();
-        self.t = (t+h).wrap(N::PI, N::int(2) * N::PI);
+        self.t = (t + h).wrap(self.wrap, self.wrap + self.wrap);
         
         Some(self.y)
     }
