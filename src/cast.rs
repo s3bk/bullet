@@ -15,7 +15,6 @@ pub trait Cast<O>: Sized {
     fn cast_clamped(self, r: RangeInclusive<O>) -> O;
 }
 
-
 macro_rules! impl_cast_unchecked {
     ($($src:ty as [$($dst:ty),*],)*) => (
         $( $(
@@ -223,15 +222,16 @@ macro_rules! impl_cast_id {
     )
 }
 impl_cast_unchecked!(
-     u8 as [i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize],
-    u16 as [          i32, u32, i64, u64, i128, u128, f32, f64, usize, isize],
-    u32 as [                         u64, i128, u128, f32, f64],
-    u64 as [                                    u128, f32, f64],
-     i8 as [i16,      i32,      i64,      i128,       f32, f64, isize],
-    i16 as [          i32,      i64,      i128, u128, f32, f64, isize],
-    i32 as [                    i64,      i128, u128, f32, f64],
-    i64 as [                              i128, u128, f32, f64],
-    f32 as [                                               f64],
+     u8 as [    u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize],
+    u16 as [             u16, i32, u32, i64, u64, i128, u128, f32, f64, usize, isize],
+    u32 as [                       u32,      u64, i128, u128, f32, f64              ],
+    u64 as [                                 u64,       u128, f32, f64              ],
+     i8 as [i8,     i16,      i32,      i64,      i128,       f32, f64,        isize],
+    i16 as [        i16,      i32,      i64,      i128, u128, f32, f64,        isize],
+    i32 as [                  i32,      i64,      i128, u128, f32, f64              ],
+    i64 as [                            i64,      i128, u128, f32, f64              ],
+    f32 as [                                                  f32, f64              ],
+    f64 as [                                                       f64              ],
 );
 #[cfg(target_pointer_width = "32")]
 impl_cast_unchecked!(

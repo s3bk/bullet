@@ -26,7 +26,7 @@ impl<V, F, N> Integration<V, F, N> where N: Real {
     }
 }
 impl<V, F, N> Iterator for Integration<V, F, N> where
-    V: Real + Splat<N>,
+    V: Real<Scalar=N>,
     F: Fn(N, V) -> V,
     N: Real
 {
@@ -41,11 +41,11 @@ impl<V, F, N> Iterator for Integration<V, F, N> where
     
         let y = self.y;
         let k1 = f(t, y);
-        let k2 = f(t + h_half, y + k1 * h_half.broadcast());
-        let k3 = f(t + h_half, y + k2 * h_half.broadcast());
-        let k4 = f(t + h, y + k3 * h.broadcast());
+        let k2 = f(t + h_half, y + k1 * V::splat(h_half));
+        let k3 = f(t + h_half, y + k2 * V::splat(h_half));
+        let k4 = f(t + h, y + k3 * V::splat(h));
         
-        self.y = y + (k1 + k4) * h_sixth.broadcast() + (k2 + k3) * h_third.broadcast();
+        self.y = y + (k1 + k4) * V::splat(h_sixth) + (k2 + k3) * V::splat(h_third);
         self.t = (t + h).wrap(self.wrap, self.wrap + self.wrap);
         
         Some(self.y)

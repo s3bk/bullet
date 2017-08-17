@@ -8,7 +8,7 @@ use simd::x86::sse2::{f64x2, u64x2, i64x2};
 //impl_simd!(f64x2 : T2(a,b,));
 
 #[cfg(target_feature = "avx")]
-use simd::x86::avx::{f32x8, f64x4};
+use simd::x86::avx::{f32x8, f64x4, bool32fx8, AvxF32x8};
 //impl_simd!(f32x8 : T8(a,b,c,d, e,f,g,h,));
 //impl_simd!(f64x4 : T4(a,b,c,d,));
 
@@ -18,7 +18,7 @@ use simd::x86::sse2::Sse2F64x2;
 use rand::{Rand, Rng};
 use rand::distributions::{Sample, IndependentSample, Range as Uniform};
 use std::fmt::Debug;
-
+use fmath;
 
 use tuple::*;
 //Float + NumCast + SampleRange + PartialOrd + Clone + Add + Debug
@@ -28,30 +28,46 @@ pub trait Real:
 {
     const PI: Self;
     type Bool;
+    type Scalar;
+    type Iterator: Iterator<Item=Self::Scalar>;
+
+    fn values(self) -> Self::Iterator;
     
     fn int(v: i16) -> Self;
     fn frac(nom: i16, denom: u16) -> Self;
+    fn inv(self) -> Self {
+        <Self as Real>::int(1) / self
+    }
     
     fn uniform01<R: Rng>(rng: &mut R) -> Self;
+
+    fn abs(self) -> Self;
+    fn sqrt(self) -> Self;
     
     /// if self exeeds at, subtract span
     fn wrap(self, at: Self, span: Self) -> Self;
     
-    fn broadcast<O>(self) -> O where O: Splat<Self> {
-        O::splat(self)
-    }
+    fn splat(s: Self::Scalar) -> Self;
     
-    fn clamp(self, min: Self, max: Self) -> Self;
+    fn clamp(self, min: Self, max: Self) -> Self {
+        let clamped_low = min.select(self, self.lt(min));
+        max.select(clamped_low, self.gt(max))
+    }
     
     fn lt(self, rhs: Self) -> Self::Bool;
     fn le(self, rhs: Self) -> Self::Bool;
     fn gt(self, rhs: Self) -> Self::Bool;
     fn ge(self, rhs: Self) -> Self::Bool;
     fn eq(self, rhs: Self) -> Self::Bool;
-}
 
-pub trait Splat<E> {
-    fn splat(e: E) -> Self;
+    // if cont true. then select self, otherwhise other
+    fn select(self, other: Self, cond: Self::Bool) -> Self;
+    fn max(self, other: Self) -> Self {
+        self.select(other, self.gt(other))
+    }
+    fn min(self, other: Self) -> Self {
+        self.select(other, self.lt(other))
+    }
 }
 
 macro_rules! impl_real {
@@ -59,6 +75,16 @@ macro_rules! impl_real {
         impl Real for $t {
             const PI: Self = ::std::$t::consts::PI;
             type Bool = bool;
+            type Scalar = $t;
+            type Iterator = ::std::iter::Once<$t>;
+
+            fn splat(s: Self::Scalar) -> Self {
+                s
+            }
+            
+            fn values(self) -> Self::Iterator {
+                ::std::iter::once(self)
+            }
             
             fn int(v: i16) -> Self { v.into() }
             fn frac(nom: i16, denom: u16) -> Self {
@@ -68,29 +94,24 @@ macro_rules! impl_real {
             fn wrap(self, at: Self, span: Self) -> Self {
                 if self > at { self - span } else { self }
             }
-            
+
             fn uniform01<R: Rng>(rng: &mut R) -> Self {
                 let uniform01 = Uniform::new(0., 1.);
                 uniform01.ind_sample(rng)
             }
-            #[inline(always)]
-            #[cfg(target_feature = "sse2")]
-            fn clamp(self, min: Self, max: Self) -> Self {
-                let max_ = $s::splat(max);
-                let min_ = $s::splat(min);
-                $s::splat(self).max(min_).min(max_).extract(0) as Self
-            }
-            #[cfg(not(target_feature = "sse2"))]
-            fn clamp(self, min: Self, max: Self) -> Self {
-                if self < min { min }
-                else if self > max { max }
-                else { self }
-            }
+
+            fn abs(self) -> Self { self.abs() }
+            fn sqrt(self) -> Self { self.sqrt() }
+            
             fn lt(self, rhs: Self) -> Self::Bool { self < rhs }
             fn le(self, rhs: Self) -> Self::Bool { self <= rhs }
             fn gt(self, rhs: Self) -> Self::Bool { self > rhs }
             fn ge(self, rhs: Self) -> Self::Bool { self >= rhs }
             fn eq(self, rhs: Self) -> Self::Bool { self == rhs }
+
+            fn select(self, other: Self, cond: Self::Bool) -> Self {
+                if cond { self } else { other }
+            }
         }
     )* )
 }
@@ -98,20 +119,24 @@ macro_rules! impl_real {
 #[cfg(target_feature = "sse2")]
 impl_real!(f32: f32x4, f64: f64x2);
 
-#[cfg(target_feature = "sse2")]
-impl Splat<f32> for f32x4 {
-    fn splat(e: f32) -> f32x4 {
-        f32x4::splat(e)
+#[cfg(target_feature = "avx")]
+impl Real for f32x8 {
+    const PI: Self = f32x8::splat(::std::f32::consts::PI);
+    type Bool = bool32fx8;
+    type Scalar = f32;
+    type Iterator = IntoElements<T8<f32, f32, f32, f32, f32, f32, f32, f32>>;
+
+    fn splat(s: Self::Scalar) -> Self {
+        f32x8::splat(s)
     }
-}
-#[cfg(target_feature = "sse2")]
-impl Real for f32x4 {
-    const PI: Self = f32x4::splat(::std::f32::consts::PI);
-    type Bool = bool32fx4;
     
-    fn int(v: i16) -> Self { f32::from(v).broadcast() }
+    fn values(self) -> Self::Iterator {
+        T8::from(self).into_elements()
+    }
+    
+    fn int(v: i16) -> Self { Self::splat(f32::from(v)) }
     fn frac(nom: i16, denom: u16) -> Self {
-        (f32::from(nom) / f32::from(denom)).broadcast()
+        Self::splat(f32::from(nom) / f32::from(denom))
     }
     
     fn wrap(self, at: Self, span: Self) -> Self {
@@ -124,19 +149,36 @@ impl Real for f32x4 {
         let b = uniform01.ind_sample(rng);
         let c = uniform01.ind_sample(rng);
         let d = uniform01.ind_sample(rng);
-        f32x4::new(a, b, c, d)
+        let e = uniform01.ind_sample(rng);
+        let f = uniform01.ind_sample(rng);
+        let g = uniform01.ind_sample(rng);
+        let h = uniform01.ind_sample(rng);
+        f32x8::new(a, b, c, d, e, f, g, h)
+    }
+
+    fn abs(self) -> Self {
+        self.le(Self::splat(0.0f32)).select(-self, self)
+    }
+    fn sqrt(self) -> Self {
+        AvxF32x8::sqrt(self)
     }
     
-    #[inline(always)]
-    fn clamp(self, min: Self, max: Self) -> Self {
-        self.max(min).min(max)
+    fn min(self, other: Self) -> Self {
+        AvxF32x8::min(self, other)
+    }
+    fn max(self, other: Self) -> Self {
+        AvxF32x8::max(self, other)
     }
     
-    fn lt(self, rhs: Self) -> Self::Bool { f32x4::lt(self, rhs) }
-    fn le(self, rhs: Self) -> Self::Bool { f32x4::le(self, rhs) }
-    fn gt(self, rhs: Self) -> Self::Bool { f32x4::gt(self, rhs) }
-    fn ge(self, rhs: Self) -> Self::Bool { f32x4::ge(self, rhs) }
-    fn eq(self, rhs: Self) -> Self::Bool { f32x4::eq(self, rhs) }
+    fn lt(self, rhs: Self) -> Self::Bool { f32x8::lt(self, rhs) }
+    fn le(self, rhs: Self) -> Self::Bool { f32x8::le(self, rhs) }
+    fn gt(self, rhs: Self) -> Self::Bool { f32x8::gt(self, rhs) }
+    fn ge(self, rhs: Self) -> Self::Bool { f32x8::ge(self, rhs) }
+    fn eq(self, rhs: Self) -> Self::Bool { f32x8::eq(self, rhs) }
+    
+    fn select(self, other: Self, cond: Self::Bool) -> Self {
+        cond.select(self, other)
+    }
 }
 
 macro_rules! first_t {
@@ -178,57 +220,72 @@ macro_rules! impl_simd {
         
     )
 }
-*/
+ */
+
+
 use tuple::*;
 macro_rules! tuple_init {
     ($($Tuple:ident { $($T:ident . $t:ident . $idx:tt),* } )*) => ($(
     
-        impl<$($T,)*> Real for $Tuple<$($T,)*>
-        where $( $T: Real ),*
+        impl<T: Real> Real for $Tuple<$(first_i!(T, $T),)*>
         {
-            const PI: Self = $Tuple( $($T::PI,)* );
-            type Bool = $Tuple<$($T::Bool),*>;
-    
+            const PI: Self = $Tuple( $(first_e!(T::PI, $T),)* );
+            type Bool = $Tuple<$(first_t!(T::Bool, $T)),*>;
+            type Scalar = T;
+            type Iterator = IntoElements<Self>;
+
+            fn splat(s: Self::Scalar) -> Self {
+                $Tuple( $(first_e!(s, $idx),)* )
+            }
+            fn values(self) -> Self::Iterator {
+                self.into_elements()
+            }
+            
             fn int(v: i16) -> Self {
-                $Tuple( $($T::int(v),)* )
+                $Tuple( $(first_e!(T::int(v), $idx),)* )
             }
             fn frac(nom: i16, denom: u16) -> Self {
-                $Tuple( $($T::frac(nom, denom),)* )
+                $Tuple( $(first_e!(T::frac(nom, denom), $idx),)* )
             }
     
             fn uniform01<R: Rng>(rng: &mut R) -> Self {
-                $Tuple( $($T::uniform01(rng),)* )
+                $Tuple( $(first_e!(T::uniform01(rng), $idx),)* )
             }
-    
+
+            fn abs(self) -> Self {
+                $Tuple( $(T::abs(self.$idx)),* )
+            }
+
+            fn sqrt(self) -> Self {
+                $Tuple( $(T::sqrt(self.$idx)),* )
+            }
+            
             fn wrap(self, at: Self, span: Self) -> Self {
-                $Tuple( $($T::wrap(self.$idx, at.$idx, span.$idx),)* )
+                $Tuple( $(T::wrap(self.$idx, at.$idx, span.$idx),)* )
             }
     
             fn clamp(self, min: Self, max: Self) -> Self {
-                $Tuple( $($T::clamp(self.$idx, min.$idx, max.$idx),)* )
+                $Tuple( $(T::clamp(self.$idx, min.$idx, max.$idx),)* )
             }
             
             fn lt(self, rhs: Self) -> Self::Bool {
-                $Tuple( $($T::lt(self.$idx, rhs.$idx),)* )
+                $Tuple( $(T::lt(self.$idx, rhs.$idx),)* )
             }
             fn le(self, rhs: Self) -> Self::Bool {
-                $Tuple( $($T::le(self.$idx, rhs.$idx),)* )
+                $Tuple( $(T::le(self.$idx, rhs.$idx),)* )
             }
             fn gt(self, rhs: Self) -> Self::Bool {
-                $Tuple( $($T::gt(self.$idx, rhs.$idx),)* )
+                $Tuple( $(T::gt(self.$idx, rhs.$idx),)* )
             }
             fn ge(self, rhs: Self) -> Self::Bool {
-                $Tuple( $($T::ge(self.$idx, rhs.$idx),)* )
+                $Tuple( $(T::ge(self.$idx, rhs.$idx),)* )
             }
             fn eq(self, rhs: Self) -> Self::Bool {
-                $Tuple( $($T::eq(self.$idx, rhs.$idx),)* )
+                $Tuple( $(T::eq(self.$idx, rhs.$idx),)* )
             }
-        }
-        impl<E> Splat<E> for $Tuple<$(first_i!(E, $T),)*>
-        where E: Clone
-        {
-            fn splat(e: E) -> Self {
-                $Tuple( $( first_e!(e.clone(), $idx), )* )
+
+            fn select(self, other: Self, cond: Self::Bool) -> Self {
+                $Tuple( $(T::select(self.$idx, other.$idx, cond.$idx),)* )
             }
         }
     )*)

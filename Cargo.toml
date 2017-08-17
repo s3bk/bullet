@@ -6,14 +6,15 @@ build = "build.rs"
 
 [dependencies]
 rand = "*"
-tuple = { version = "*", features = ["simd"], git="https://github.com/s3bk/tuple.git" }
+tuple = { features = ["impl_simd"], git="https://github.com/s3bk/tuple.git" }
 num = "*"
 simd = "*"
 lalrpop-util = "*"
 regex = "*"
-#fmath = { version = "*", git = "https://github.com/s3bk/fmath.git" }
+fmath = { git = "https://github.com/s3bk/fmath.git" }
 optimization = "*"
 env_logger = "*"
+typenum = "*"
 
 [build-dependencies]
 lalrpop = "*"

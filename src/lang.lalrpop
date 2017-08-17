@@ -4,21 +4,29 @@ use self::Expr::*;
 
 grammar;
 
-pub Expr: Node = {
-    <l:Expr> "+" <r:Factor> => box Add(l, r),
-    <l:Expr> "-" <r:Factor> => box Sub(l, r),
+pub Expr: Expr = {
+    <l:Expr> "+" <r:Factor> => Add(box (l, r)),
+    <l:Expr> "-" <r:Factor> => Sub(box (l, r)),
     Factor,
 };
 
-pub Factor: Node = {
-    <l:Factor> "*" <r:Term> => box Mul(l, r),
-    <l:Factor> "/" <r:Term> => box Div(l, r),
+pub Factor: Expr = {
+    <l:Factor> <r:Pow> => Mul(box(l, r)),
+    <l:Factor> "*" <r:Pow> => Mul(box(l, r)),
+    <l:Factor> "/" <r:Pow> => Div(box(l, r)),
+    Pow,
+};
+
+pub Pow: Expr = {
+    <b:Term> "^" <e:Term> => Pow(box(b, e)),
     Term,
 };
 
-pub Term: Node = {
+pub Term: Expr = {
     Num,
+    Var,
     "(" <Expr> ")",
 };
 
-Num: Node = <s:r"[0-9]+"> => box Int(s.parse::<i32>().unwrap());
+Num: Expr = <s:r"[0-9]+"> => Int(s.parse::<i32>().unwrap());
+Var: Expr = <s:r"[a-z]+"> => Var(s.into());
