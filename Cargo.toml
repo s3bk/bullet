@@ -15,6 +15,7 @@ fmath = { git = "https://github.com/s3bk/fmath.git" }
 optimization = "*"
 env_logger = "*"
 typenum = "*"
+itertools = "*"
 
 [build-dependencies]
 lalrpop = "*"

@@ -11,7 +11,7 @@ pub Expr: Expr = {
 };
 
 pub Factor: Expr = {
-    <l:Factor> <r:Pow> => Mul(box(l, r)),
+    <l:Num> <r:Pow> => Mul(box(l, r)),
     <l:Factor> "*" <r:Pow> => Mul(box(l, r)),
     <l:Factor> "/" <r:Pow> => Div(box(l, r)),
     Pow,
@@ -25,8 +25,9 @@ pub Pow: Expr = {
 pub Term: Expr = {
     Num,
     Var,
+    <f:r"[[:alpha:]]+"> <g:Term> => Func(f.into(), box g),
     "(" <Expr> ")",
 };
 
 Num: Expr = <s:r"[0-9]+"> => Int(s.parse::<i32>().unwrap());
-Var: Expr = <s:r"[a-z]+"> => Var(s.into());
+Var: Expr = <s:r"[[:alpha:]]+"> => Var(s.into());

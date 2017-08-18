@@ -15,6 +15,7 @@ extern crate tuple;
 extern crate optimization;
 extern crate fmath;
 extern crate typenum;
+extern crate itertools;
 
 pub mod integrate;
 pub mod real;
@@ -22,6 +23,7 @@ pub mod expr;
 pub mod lang;
 pub mod cast;
 pub mod diff;
+
 
 pub mod prelude {
     pub use integrate::*;
