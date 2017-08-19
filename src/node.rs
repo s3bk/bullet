@@ -34,7 +34,7 @@ impl fmt::Display for Node {
                                 _ => write!(w, " + {}", n)?
                             }
                         }
-                        Ok(())
+                        write!(w, ")")
                     }
                 }
             },
