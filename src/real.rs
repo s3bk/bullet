@@ -1,9 +1,8 @@
 use std::ops::{Add, Sub, Mul, Div};
 
-use rand::{Rand, Rng};
-use rand::distributions::{Sample, IndependentSample, Range as Uniform};
+use rand::{Rng};
+use rand::distributions::{IndependentSample, Range as Uniform};
 use std::fmt::Debug;
-use fmath;
 
 use tuple::*;
 //Float + NumCast + SampleRange + PartialOrd + Clone + Add + Debug
@@ -121,7 +120,6 @@ macro_rules! impl_simd {
         }
     )* )
 }
-        use tuple::*;
         
 #[cfg(target_feature = "mmx")]
 use simd::{f32x4, bool32fx4, u32x4, i32x4};
@@ -129,7 +127,7 @@ use simd::{f32x4, bool32fx4, u32x4, i32x4};
 impl_simd!(f32x4: f32, bool32fx4, Sse2F32x4, T4(0 1 2 3));
 
 #[cfg(target_feature = "sse2")]
-use simd::x86::sse2::{f64x2, u64x2, bool64fx2, Sse2F64x2};
+use simd::x86::sse2::{f64x2, bool64fx2, Sse2F64x2};
 #[cfg(target_feature = "sse2")]
 impl_simd!(f64x2: f64, bool64fx2, Sse2F64x2, T2(0 1));
 

@@ -37,7 +37,7 @@ impl SumFactors {
         }
     }
 
-    fn to_node(mut self) -> Node {
+    fn to_node(self) -> Node {
         let mut parts = Vec::new();
         if !self.base.is_zero() {
             parts.push(self.base.to_node().unwrap());
@@ -53,7 +53,7 @@ impl SumFactors {
     }
 }
 
-fn simplify_sum<I>(parts: I) -> Node where I: Iterator<Item=Node> {
+pub fn simplify_sum<I>(parts: I) -> Node where I: Iterator<Item=Node> {
     SumFactors::from_sum(parts).to_node()
 }
 
@@ -92,6 +92,7 @@ impl ProductPowers {
             Node::Pow(box (n, pow)) => match (n, pow) {
                 (Node::Int(1), _) => {},
                 (Node::Int(i), Node::Int(j)) if j > 0 && j < 100 => self.mul *= i.pow(j as u32),
+                (Node::Int(i), Node::Int(j)) if j < 0 && j > -100 => self.mul /= i.pow(-j as u32),
                 (n, pow) => self.mul_power(n, pow)
             },
             n => self.mul_power(n, Node::Int(1))
@@ -126,33 +127,33 @@ impl ProductPowers {
     }
 }
 
-fn simplify_prod<I>(parts: I) -> Node where I: Iterator<Item=Node> {
+pub fn simplify_prod<I>(parts: I) -> Node where I: Iterator<Item=Node> {
     ProductPowers::from_product(parts).to_node()
 }
 
 /// f^g
-fn simplify_pow(f: Node, g: Node) -> Node {
+pub fn power(f: Node, g: Node) -> Node {
     match (f, g) {
         (Node::Int(1), _) |
         (Node::Int(0), Node::Int(0)) => Node::Int(1),
-        (Node::Int(0), Node::Int(n)) => Node::Int(0),
+        (Node::Int(0), Node::Int(_)) => Node::Int(0),
         (f, Node::Int(1)) => simplify(f),
-        (f, Node::Int(0)) => Node::Int(1),
-        (Node::Pow(box (f, g)), h) => simplify_pow(f, simplify_prod([g, h].into_elements())), // (f^g)^h = f^(g h)
+        (_, Node::Int(0)) => Node::Int(1),
+        (Node::Pow(box (f, g)), h) => power(f, product((g, h))), // (f^g)^h = f^(g h)
         (f, g) => Node::Pow(box (f, g))
     }
 }
 
-fn simplify_func(f: Func, g: Node) -> Node {
-    Node::Func(f, box g)
+pub fn function(f: Func, g: Node) -> Node {
+    Node::Func(f, box simplify(g))
 }
 
 pub fn simplify(n: Node) -> Node {
     let r = match n.clone() {
         Node::Prod(parts) => ProductPowers::from_product(parts.into_iter()).to_node(),
         Node::Sum(parts) => simplify_sum(parts.into_iter()),
-        Node::Pow(box (f, g)) => simplify_pow(f, g),
-        Node::Func(f, box g) => simplify_func(f, g),
+        Node::Pow(box (f, g)) => power(f, g),
+        Node::Func(f, box g) => function(f, g),
         n => n
     };
     if n != r {
@@ -161,3 +162,11 @@ pub fn simplify(n: Node) -> Node {
     }
     r
 }
+
+pub fn sum<T>(sum: T) -> Node where T: TupleElements<Element=Node> {
+    simplify_sum(sum.into_elements())
+}
+pub fn product<T>(sum: T) -> Node where T: TupleElements<Element=Node> {
+    simplify_prod(sum.into_elements())
+}
+

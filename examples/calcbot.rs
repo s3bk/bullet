@@ -17,6 +17,7 @@ struct Calc {
     re_diff: Regex,
     re_define: Regex,
     re_eval: Regex,
+    re_simplify: Regex,
     context: EvalContext
 }
 impl Calc {
@@ -25,6 +26,7 @@ impl Calc {
             re_diff: Regex::new(r"^d/d([[:alpha:]]+)\s+(\S.*)").unwrap(),
             re_define: Regex::new(r"^([[:alpha:]]+)\s*:=\s*(\S+)").unwrap(),
             re_eval: Regex::new(r"^eval\s+(\S.*)").unwrap(),
+            re_simplify: Regex::new(r"^simplify\s+(\S.*)").unwrap(),
             context: EvalContext::new()
         }
     }
@@ -61,7 +63,8 @@ impl Calc {
             let expr_s = cap.get(2).unwrap().as_str();
             
             let expr = lang::parse_Expr(expr_s).map_err(|e| Error::ParseError)?;
-            let node = expr.to_node().map_err(|e| Error::Expr(e))?;
+            let node = expr.to_node().map_err(|e| Error::Expr(e))?.simplify();
+            let node = node.simplify();
             let res = diff(&node, var).simplify();
             Ok(Some(res.to_string()))
         })
@@ -88,6 +91,15 @@ impl Calc {
             Ok(Some(r.to_string()))
         })
     }
+    fn run_simplify(&self, msg: &str) -> RunRes {
+        self.re_simplify.captures(msg).map(|cap| {
+            let expr_s = cap.get(1).unwrap().as_str();
+            
+            let expr = lang::parse_Expr(expr_s).map_err(|e| Error::ParseError)?;
+            let node = expr.to_node().map_err(|e| Error::Expr(e))?;
+            Ok(Some(node.simplify().to_string()))
+        })
+    }
     
 }
 impl Listener for Calc {
@@ -95,6 +107,7 @@ impl Listener for Calc {
         if let Some(r) = self.run_diff(msg)
             .or_else(|| self.run_define(msg))
             .or_else(|| self.run_eval(msg))
+            .or_else(|| self.run_simplify(msg))
         {
             match r {
                 Ok(Some(s)) => irc.privmsg(channel.name(), &*s).unwrap(),

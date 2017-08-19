@@ -14,9 +14,26 @@ pub struct Rational {
     num: i64,
     denom: i64
 }
+impl AddAssign<i64> for Rational {
+    fn add_assign(&mut self, i: i64) {
+        self.num += i * self.denom;
+    }
+}
 impl MulAssign<i64> for Rational {
     fn mul_assign(&mut self, n: i64) {
         self.num *= n;
+    }
+}
+impl MulAssign for Rational {
+    fn mul_assign(&mut self, rhs: Rational) {
+        self.num *= rhs.num;
+        self.denom *= rhs.denom;
+    }
+}
+impl DivAssign for Rational {
+    fn div_assign(&mut self, rhs: Rational) {
+        self.num *= rhs.denom;
+        self.denom *= rhs.num;
     }
 }
 impl DivAssign<i64> for Rational {
@@ -25,6 +42,9 @@ impl DivAssign<i64> for Rational {
     }
 }
 impl Rational {
+    pub fn new(num: i64, denom: i64) -> Rational {
+        Rational { num, denom }
+    }
     pub fn frac(&self) -> Result<(i64, i64), &'static str> {
         match (self.num, self.denom) {
             (0, 0) => Err("undefined"),
@@ -69,10 +89,5 @@ impl From<i64> for Rational {
             num: i,
             denom: 1
         }
-    }
-}
-impl AddAssign<i64> for Rational {
-    fn add_assign(&mut self, i: i64) {
-        self.num += i * self.denom;
     }
 }

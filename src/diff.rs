@@ -1,66 +1,63 @@
-use std::iter::once;
-
 use func::Func;
 use node::Node;
+use simplify::{sum, simplify_prod, simplify_sum, product, power, function};
 
 pub fn diff(node: &Node, var: &str) -> Node {
     let out = match *node {
         Node::Int(_) => Node::Int(0),
-        Node::Sum(ref parts) => Node::Sum(parts.iter().map(|n| diff(n, var)).collect()),
-        Node::Prod(ref parts) => {
-            Node::Sum(
-                (0 .. parts.len()).map(|i| {
-                    Node::Prod(
-                        parts.iter().enumerate().map(|(j, f)| {
-                            if i == j {
-                                diff(f, var)
-                            } else {
-                                f.clone()
-                            }
-                        }).collect()
-                    )
-                }).collect()
-            )
-        },
+        Node::Sum(ref parts) => simplify_sum(parts.iter().map(|n| diff(n, var))),
+        Node::Prod(ref parts) => simplify_sum(
+            (0 .. parts.len()).map(|i| {
+                simplify_prod(
+                    parts.iter().enumerate().map(|(j, f)| {
+                        if i == j {
+                            diff(f, var)
+                        } else {
+                            f.clone()
+                        }
+                    })
+                )
+            })
+        ),
         Node::Pow(box (ref f, ref g)) => {
             // f(x)^g(x) ( log f(x) · g'(x) + g(x) f'(x) f(x)^-1 )
-            Node::Prod(vec![
-                Node::Pow(box( // f(x)^g(x)
+            product((
+                power( // f(x)^g(x)
                     f.clone(),
                     g.clone()
-        	)),
-                Node::Sum(vec![ // log f(x) · g'(x) + g(x) f'(x) f(x)^-1
-                    Node::Prod(vec![ // log f(x) · g'(x)
-                        Node::Func(Func::Log, box f.clone()), // log f(x)
+        	),
+                sum(( // log f(x) · g'(x) + g(x) f'(x) f(x)^-1
+                    product(( // log f(x) · g'(x)
+                        function(Func::Log, f.clone()), // log f(x)
                         diff(g, var)
-                    ]),
-                    Node::Prod(vec![ // g(x) f'(x) f(x)^-1
+                    )),
+                    product(( // g(x) f'(x) f(x)^-1
                         g.clone(),
                         diff(f, var),
-                        Node::Pow(box(f.clone(), Node::Int(-1))) // f(x)^-1
-                    ])
-                ])
-            ])
+                        power(f.clone(), Node::Int(-1)) // f(x)^-1
+                    ))
+                ))
+            ))
         },
         Node::Func(f, box ref g) => {
             match f {
-                Func::Sin => Node::Prod(vec![
-                    Node::Func(Func::Cos, box g.clone()),
+                Func::Sin => product((
+                    function(Func::Cos, g.clone()), // d/dx sin(g(x)) = cos(g(x)) g'(x)
                     diff(g, var)
-                ]),
-                Func::Cos => Node::Prod(vec![
+                )),
+                Func::Cos => product(( // d/dx cos(g(x)) = - sin(g(x)) g'(x)
                     Node::Int(-1),
-                    Node::Func(Func::Sin, box g.clone()),
+                    function(Func::Sin, g.clone()),
                     diff(g, var)
-                ]),
-                Func::Log => Node::Prod(vec![
-                    Node::Pow(box(g.clone(), Node::Int(-1))),
+                )),
+                Func::Log => product(( // d/dx log(g(x)) = g'(x) / g(x)
+                    power(g.clone(), Node::Int(-1)),
                     diff(g, var)
-                ]),
-                Func::Exp => Node::Prod(vec![
-                    Node::Func(Func::Exp, box g.clone()),
+                )),
+                Func::Exp => product(( // d/dx exp(g(x)) = exp(g(x)) g'(x)
+                    function(Func::Exp, g.clone()),
                     diff(g, var)
-                ])
+                ))
             }
         },
         Node::Var(ref s) => {

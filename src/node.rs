@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use std::fmt::{self, Write};
+use std::fmt;
 use func::Func;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]

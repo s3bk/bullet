@@ -1,4 +1,3 @@
-use std::str::FromStr;
 use expr::*;
 use self::Expr::*;
 
@@ -13,6 +12,7 @@ pub Expr: Expr = {
 pub Factor: Expr = {
     <l:Num> <r:Pow> => Mul(box(l, r)),
     <l:Factor> "*" <r:Pow> => Mul(box(l, r)),
+    <l:Factor> "·" <r:Pow> => Mul(box(l, r)),
     <l:Factor> "/" <r:Pow> => Div(box(l, r)),
     Pow,
 };

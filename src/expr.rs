@@ -1,4 +1,4 @@
-use std::fmt::{self, Display, Debug};
+use std::fmt::{self, Display};
 use node::Node;
 use func::Func;
 
