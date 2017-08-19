@@ -14,13 +14,13 @@ fn main() {
                 
                 match e.to_node() {
                     Ok(mut f) => {
-                        println!("f: {}", f);
+                        println!("f: {:?}", f);
                         f = f.simplify();
                         println!("f: {}", f);
                         
-                        let df = diff(&f, "x");
+                        let df = diff(&f, "x").simplify();
+                        println!("d/dx f(x): {:?}", df);
                         println!("d/dx f(x): {}", df);
-                        println!("d/dx f(x): {}", df.simplify());
                     },
                     Err(e) => println!("{}", e)
                 }

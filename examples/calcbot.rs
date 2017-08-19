@@ -63,7 +63,7 @@ impl Calc {
             let expr = lang::parse_Expr(expr_s).map_err(|e| Error::ParseError)?;
             let node = expr.to_node().map_err(|e| Error::Expr(e))?;
             let res = diff(&node, var).simplify();
-            Ok(Some(node.simplify().to_string()))
+            Ok(Some(res.to_string()))
         })
     }
 
