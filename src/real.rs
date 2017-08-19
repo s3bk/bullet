@@ -1,20 +1,5 @@
 use std::ops::{Add, Sub, Mul, Div};
 
-use simd::{f32x4, bool32fx4, u32x4, i32x4};
-//impl_simd!(f32x4 : T4(a,b,c,d,));
-
-#[cfg(target_feature = "sse2")]
-use simd::x86::sse2::{f64x2, u64x2, i64x2};
-//impl_simd!(f64x2 : T2(a,b,));
-
-#[cfg(target_feature = "avx")]
-use simd::x86::avx::{f32x8, f64x4, bool32fx8, AvxF32x8};
-//impl_simd!(f32x8 : T8(a,b,c,d, e,f,g,h,));
-//impl_simd!(f64x4 : T4(a,b,c,d,));
-
-#[cfg(target_feature = "sse2")]
-use simd::x86::sse2::Sse2F64x2;
-
 use rand::{Rand, Rng};
 use rand::distributions::{Sample, IndependentSample, Range as Uniform};
 use std::fmt::Debug;
@@ -70,160 +55,92 @@ pub trait Real:
     }
 }
 
-macro_rules! impl_real {
-    ($($t:ident: $s:ident),*) => ( $(
-        impl Real for $t {
-            const PI: Self = ::std::$t::consts::PI;
-            type Bool = bool;
-            type Scalar = $t;
-            type Iterator = ::std::iter::Once<$t>;
-
-            fn splat(s: Self::Scalar) -> Self {
-                s
-            }
-            
-            fn values(self) -> Self::Iterator {
-                ::std::iter::once(self)
-            }
-            
-            fn int(v: i16) -> Self { v.into() }
-            fn frac(nom: i16, denom: u16) -> Self {
-                $t::from(nom) / $t::from(denom)
-            }
-            
-            fn wrap(self, at: Self, span: Self) -> Self {
-                if self > at { self - span } else { self }
-            }
-
-            fn uniform01<R: Rng>(rng: &mut R) -> Self {
-                let uniform01 = Uniform::new(0., 1.);
-                uniform01.ind_sample(rng)
-            }
-
-            fn abs(self) -> Self { self.abs() }
-            fn sqrt(self) -> Self { self.sqrt() }
-            
-            fn lt(self, rhs: Self) -> Self::Bool { self < rhs }
-            fn le(self, rhs: Self) -> Self::Bool { self <= rhs }
-            fn gt(self, rhs: Self) -> Self::Bool { self > rhs }
-            fn ge(self, rhs: Self) -> Self::Bool { self >= rhs }
-            fn eq(self, rhs: Self) -> Self::Bool { self == rhs }
-
-            fn select(self, other: Self, cond: Self::Bool) -> Self {
-                if cond { self } else { other }
-            }
-        }
-    )* )
-}
-
-#[cfg(target_feature = "sse2")]
-impl_real!(f32: f32x4, f64: f64x2);
-
-#[cfg(target_feature = "avx")]
-impl Real for f32x8 {
-    const PI: Self = f32x8::splat(::std::f32::consts::PI);
-    type Bool = bool32fx8;
-    type Scalar = f32;
-    type Iterator = IntoElements<T8<f32, f32, f32, f32, f32, f32, f32, f32>>;
-
-    fn splat(s: Self::Scalar) -> Self {
-        f32x8::splat(s)
-    }
-    
-    fn values(self) -> Self::Iterator {
-        T8::from(self).into_elements()
-    }
-    
-    fn int(v: i16) -> Self { Self::splat(f32::from(v)) }
-    fn frac(nom: i16, denom: u16) -> Self {
-        Self::splat(f32::from(nom) / f32::from(denom))
-    }
-    
-    fn wrap(self, at: Self, span: Self) -> Self {
-        self.gt(at).select(self - span, self)
-    }
-    
-    fn uniform01<R: Rng>(rng: &mut R) -> Self {
-        let uniform01 = Uniform::new(0., 1.);
-        let a = uniform01.ind_sample(rng);
-        let b = uniform01.ind_sample(rng);
-        let c = uniform01.ind_sample(rng);
-        let d = uniform01.ind_sample(rng);
-        let e = uniform01.ind_sample(rng);
-        let f = uniform01.ind_sample(rng);
-        let g = uniform01.ind_sample(rng);
-        let h = uniform01.ind_sample(rng);
-        f32x8::new(a, b, c, d, e, f, g, h)
-    }
-
-    fn abs(self) -> Self {
-        self.le(Self::splat(0.0f32)).select(-self, self)
-    }
-    fn sqrt(self) -> Self {
-        AvxF32x8::sqrt(self)
-    }
-    
-    fn min(self, other: Self) -> Self {
-        AvxF32x8::min(self, other)
-    }
-    fn max(self, other: Self) -> Self {
-        AvxF32x8::max(self, other)
-    }
-    
-    fn lt(self, rhs: Self) -> Self::Bool { f32x8::lt(self, rhs) }
-    fn le(self, rhs: Self) -> Self::Bool { f32x8::le(self, rhs) }
-    fn gt(self, rhs: Self) -> Self::Bool { f32x8::gt(self, rhs) }
-    fn ge(self, rhs: Self) -> Self::Bool { f32x8::ge(self, rhs) }
-    fn eq(self, rhs: Self) -> Self::Bool { f32x8::eq(self, rhs) }
-    
-    fn select(self, other: Self, cond: Self::Bool) -> Self {
-        cond.select(self, other)
-    }
-}
-
 macro_rules! first_t {
-    ($A:ty, $B:ty) => ($A)
+    ($A:ty, $B:tt) => ($A)
 }
 macro_rules! first_i {
-    ($A:ident, $B:ident) => ($A)
+    ($A:ident, $B:tt) => ($A)
 }
 macro_rules! first_e {
     ($a:expr, $b:tt) => ($a)
 }
-/*
+
 macro_rules! impl_simd {
-    ($name:ident : $Tuple:ident( $($n:ident,)* ) ) => (
-        impl Real for $name {
-            const PI: $name = $name::csplat(<<$name as Simd>::Elem as Real>::PI);
+    ($($simd:ident: $scalar:ident, $bool:ty, $trait:ident, $Tuple:ident($($idx:tt)*));*) => ( $(
+        impl Real for $simd {
+            const PI: Self = $simd::splat(::std::$scalar::consts::PI);
+            type Bool = $bool;
+            type Scalar = $scalar;
+            type Iterator = IntoElements<$Tuple<$(first_t!($scalar, $idx)),*>>;
+
+            fn splat(s: Self::Scalar) -> Self {
+                $simd::splat(s)
+            }
             
-            #[inline(always)]
+            fn values(self) -> Self::Iterator {
+                $Tuple::from(self).into_elements()
+            }
+            
+            fn int(v: i16) -> Self { Self::splat($scalar::from(v)) }
+            fn frac(nom: i16, denom: u16) -> Self {
+                Self::splat($scalar::from(nom) / $scalar::from(denom))
+            }
+            
             fn wrap(self, at: Self, span: Self) -> Self {
-                self.le(at).select(self, self-span)
+                self.gt(at).select(self - span, self)
+            }
+            
+            fn uniform01<R: Rng>(rng: &mut R) -> Self {
+                let uniform01 = Uniform::new(0., 1.);
+                $simd::new($(first_e!(uniform01.ind_sample(rng), $idx)),*)
+            }
+
+            fn abs(self) -> Self {
+                self.le(Self::splat(0.0)).select(-self, self)
+            }
+            fn sqrt(self) -> Self {
+                $trait::sqrt(self)
+            }
+            
+            fn min(self, other: Self) -> Self {
+                $trait::min(self, other)
+            }
+            fn max(self, other: Self) -> Self {
+                $trait::max(self, other)
+            }
+            
+            fn lt(self, rhs: Self) -> Self::Bool { $simd::lt(self, rhs) }
+            fn le(self, rhs: Self) -> Self::Bool { $simd::le(self, rhs) }
+            fn gt(self, rhs: Self) -> Self::Bool { $simd::gt(self, rhs) }
+            fn ge(self, rhs: Self) -> Self::Bool { $simd::ge(self, rhs) }
+            fn eq(self, rhs: Self) -> Self::Bool { $simd::eq(self, rhs) }
+            
+            fn select(self, other: Self, cond: Self::Bool) -> Self {
+                cond.select(self, other)
             }
         }
-        impl Splat<<$name as Simd>::Elem> for $name {
-            #[inline(always)]
-            fn splat(x: <$name as Simd>::Elem) -> $name {
-                $name::csplat(x)
-            }
-        }
-        
-        impl From<$name> for $Tuple< $(first_t!(<$name as Simd>::Elem, $n),)* >
-        {
-            #[inline(always)]
-            fn from(s: $name) -> Self {
-                let mut i = 0;
-                $( let $n = s.extract(i); i += 1; )*
-                $Tuple($( $n, )*)
-            }
-        }
-        
-    )
+    )* )
 }
- */
+        use tuple::*;
+        
+#[cfg(target_feature = "mmx")]
+use simd::{f32x4, bool32fx4, u32x4, i32x4};
+#[cfg(target_feature = "mmx")]
+impl_simd!(f32x4: f32, bool32fx4, Sse2F32x4, T4(0 1 2 3));
 
+#[cfg(target_feature = "sse2")]
+use simd::x86::sse2::{f64x2, u64x2, bool64fx2, Sse2F64x2};
+#[cfg(target_feature = "sse2")]
+impl_simd!(f64x2: f64, bool64fx2, Sse2F64x2, T2(0 1));
 
-use tuple::*;
+#[cfg(target_feature = "avx")]
+use simd::x86::avx::{f32x8, f64x4, bool32fx8, bool64fx4, AvxF32x8, AvxF64x4};
+#[cfg(target_feature = "avx")]
+impl_simd!(
+    f32x8: f32, bool32fx8, AvxF32x8, T8(0 1 2 3 4 5 6 7);
+    f64x4: f64, bool64fx4, AvxF64x4, T4(0 1 2 3)
+);
+        
 macro_rules! tuple_init {
     ($($Tuple:ident { $($T:ident . $t:ident . $idx:tt),* } )*) => ($(
     

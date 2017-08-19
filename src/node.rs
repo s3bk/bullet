@@ -53,6 +53,7 @@ impl fmt::Display for Node {
                     _ => write!(w, "({})", num.iter().join(" · "))
                 }?;
                 match denom.len() {
+                    0 => Ok(()),
                     1 => write!(w, " / {}", denom[0]),
                     _ => write!(w, " / ({})", denom.iter().join(" · "))
                 }
