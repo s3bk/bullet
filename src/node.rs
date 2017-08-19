@@ -58,9 +58,29 @@ impl fmt::Display for Node {
                     _ => write!(w, " / ({})", denom.iter().join(" · "))
                 }
             },
-            Node::Pow(box (ref f, ref g)) => write!(w, "{}^{}", f, g),
+            Node::Pow(box (ref f, ref g)) => match *g {
+                Node::Int(i) => write!(w, "{}{}", f, int_super(i)),
+                ref g => write!(w, "{}^{}", f, g)
+            }
             Node::Func(f, box ref g) => write!(w, "{}({})", f, g),
             Node::Var(ref s) => write!(w, "{}", s)
         }
     }
+}
+
+fn int_super(i: i64) -> String {
+    i.to_string().chars().map(|c| match c {
+        '-' => '⁻',
+        '0' => '⁰',
+        '1' => '¹',
+        '2' => '²',
+        '3' => '³',
+        '4' => '⁴',
+        '5' => '⁵',
+        '6' => '⁶',
+        '7' => '⁷',
+        '8' => '⁸',
+        '9' => '⁹',
+        _ => unreachable!()
+    }).collect()
 }
