@@ -23,7 +23,11 @@ pub mod expr;
 pub mod lang;
 pub mod cast;
 pub mod diff;
-
+pub mod simplify;
+pub mod node;
+pub mod func;
+pub mod rational;
+pub mod eval;
 
 pub mod prelude {
     pub use integrate::*;

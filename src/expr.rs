@@ -1,5 +1,6 @@
 use std::fmt::{self, Display, Debug};
-use diff::{Node, Func};
+use node::Node;
+use func::Func;
 
 #[derive(Debug)]
 pub enum Expr {
@@ -29,8 +30,20 @@ impl Display for Expr {
     }
 }
 
+pub enum ExprError {
+    UnimplementedFunction(String)
+}
+impl Display for ExprError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ExprError::UnimplementedFunction(ref func) => write!(f, "function '{}' is not defined yet", func)
+        }
+    }
+}
+
+
 impl Expr {    
-    pub fn to_node(&self) -> Result<Node, String> {
+    pub fn to_node(&self) -> Result<Node, ExprError> {
         Ok(match *self {
             Expr::Add(box (ref f, ref g)) => Node::Sum(vec![f.to_node()?, g.to_node()?]),
             Expr::Sub(box (ref f, ref g)) => Node::Sum(vec![f.to_node()?, Node::Prod(vec![Node::Int(-1), g.to_node()?])]),
@@ -43,7 +56,7 @@ impl Expr {
                     "cos" => Func::Cos,
                     "log" => Func::Log,
                     "exp" => Func::Exp,
-                    s => return Err(format!("'{}' is not implemented yet", s))
+                    s => return Err(ExprError::UnimplementedFunction(s.into()))
                 };
                 Node::Func(f, box g.to_node()?)
             },
