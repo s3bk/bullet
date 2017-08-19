@@ -32,7 +32,7 @@ impl Calc {
 
 static NICKNAME: &'static str = "calc";
 static USERNAME: &'static str = "calc";
-static REALNAME: &'static str = "A Rust calculator";
+static REALNAME: &'static str = "https://github.com/s3bk/math/blob/master/examples/calcbot.rs";
 
 enum Error {
     ParseError,
