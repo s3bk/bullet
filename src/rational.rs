@@ -82,6 +82,10 @@ impl Rational {
     pub fn is_zero(&self) -> bool {
         self.num == 0
     }
+
+    pub fn is_negative(&self) -> bool {
+        (self.num < 0) ^ (self.denom < 0)
+    }
 }
 impl From<i64> for Rational {
     fn from(i: i64) -> Rational {

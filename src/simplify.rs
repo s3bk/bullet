@@ -3,6 +3,7 @@ use rational::Rational;
 use func::Func;
 use tuple::TupleElements;
 use std::collections::HashMap;
+use std::iter::IntoIterator;
 
 struct SumFactors {
     factors: HashMap<Node, Rational>,
@@ -15,9 +16,9 @@ impl SumFactors {
             base: Rational::from(0)
         }
     }
-    fn from_sum<I>(parts: I) -> SumFactors where I: Iterator<Item=Node> {
+    fn from_sum<I>(parts: I) -> SumFactors where I: IntoIterator<Item=Node> {
         let mut sum = SumFactors::new();
-        for n in parts {
+        for n in parts.into_iter() {
             sum.add(n);
         }
         sum
@@ -45,6 +46,7 @@ impl SumFactors {
         for (n, r) in self.factors {
             parts.push(r.mul(n).unwrap());
         }
+        parts.sort();
         match parts.len() {
             0 => Node::Int(0),
             1 => parts.pop().unwrap(),
@@ -53,7 +55,7 @@ impl SumFactors {
     }
 }
 
-pub fn simplify_sum<I>(parts: I) -> Node where I: Iterator<Item=Node> {
+pub fn simplify_sum<I>(parts: I) -> Node where I: IntoIterator<Item=Node> {
     SumFactors::from_sum(parts).to_node()
 }
 
@@ -70,9 +72,9 @@ impl ProductPowers {
             mul: Rational::from(1)
         }
     }
-    fn from_product<I>(parts: I) -> ProductPowers where I: Iterator<Item=Node> {
+    fn from_product<I>(parts: I) -> ProductPowers where I: IntoIterator<Item=Node> {
         let mut p = ProductPowers::new();
-        for n in parts {
+        for n in parts.into_iter() {
             p.mul(n);
         }
         p
@@ -98,6 +100,15 @@ impl ProductPowers {
             n => self.mul_power(n, Node::Int(1))
         }
     }
+    fn to_node_and_sign(mut self) -> (Node, Sign) {
+        let sign = if self.mul.is_negative() {
+            self.mul *= -1;
+            Sign::Negative
+        } else {
+            Sign::Positive
+        };
+        (self.to_node(), sign)
+    }
     fn to_node(self) -> Node {
         let mut parts = vec![];
         let (num, denom) = self.mul.frac().unwrap();
@@ -114,10 +125,11 @@ impl ProductPowers {
                 exp => parts.push(Node::Pow(box (base, exp)))
             }
         }
-        
+ 
         if parts.contains(&Node::Int(0)) {
             Node::Int(0)
         } else {
+            parts.sort();
             match parts.len() {
                 0 => Node::Int(1),
                 1 => parts.pop().unwrap(),
@@ -127,7 +139,7 @@ impl ProductPowers {
     }
 }
 
-pub fn simplify_prod<I>(parts: I) -> Node where I: Iterator<Item=Node> {
+pub fn simplify_prod<I>(parts: I) -> Node where I: IntoIterator<Item=Node> {
     ProductPowers::from_product(parts).to_node()
 }
 
@@ -143,9 +155,21 @@ pub fn power(f: Node, g: Node) -> Node {
         (f, g) => Node::Pow(box (f, g))
     }
 }
+enum Sign {
+    Positive,
+    Negative
+}   
 
 pub fn function(f: Func, g: Node) -> Node {
-    Node::Func(f, box simplify(g))
+    match (f, simplify(g)) {
+        (Func::Log, Node::Pow(box (f, g))) => product((g, function(Func::Log, f))), // log (f^g) = g log f,
+        (Func::Cos, Node::Prod(parts)) => Node::Func(Func::Cos, box ProductPowers::from_product(parts).to_node_and_sign().0), // cos(-x) = cos(x),
+        (Func::Sin, Node::Prod(parts)) => match ProductPowers::from_product(parts).to_node_and_sign() {
+            (g, Sign::Positive) => Node::Func(Func::Sin, box g), // nothing to do
+            (g, Sign::Negative) => product((Node::Int(-1), Node::Func(Func::Sin, box g))) // sin(-x) = -sin(x)
+        }
+        (f, g) => Node::Func(f, box simplify(g))
+    }
 }
 
 pub fn simplify(n: Node) -> Node {

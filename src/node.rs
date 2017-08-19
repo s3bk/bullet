@@ -2,14 +2,14 @@ use itertools::Itertools;
 use std::fmt;
 use func::Func;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub enum Node {
+    Int(i64),
+    Var(String),
     Sum(Vec<Node>),
     Prod(Vec<Node>),
     Pow(Box<(Node, Node)>),
-    Int(i64),
-    Func(Func, Box<Node>),
-    Var(String)
+    Func(Func, Box<Node>)
 }
 impl Node {
     pub fn simplify(self) -> Node {
@@ -63,6 +63,50 @@ impl fmt::Display for Node {
                 ref g => write!(w, "{}^{}", f, g)
             }
             Node::Func(f, box ref g) => write!(w, "{}({})", f, g),
+            Node::Var(ref s) => write!(w, "{}", s)
+        }
+    }
+}
+impl fmt::UpperHex for Node {
+fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Node::Int(i) => write!(w, "{}", i),
+            Node::Sum(ref parts) => {
+                match parts.len() {
+                    0 => write!(w, "0"),
+                    1 => write!(w, "{:X}", parts[0]),
+                    _ => {
+                        write!(w, r"\left( {:X}", parts[0])?;
+                        for n in &parts[1..] {
+                            match *n {
+                                Node::Int(i) if i < 0 => write!(w, " - {}", -i)?,
+                                _ => write!(w, " + {:X}", n)?
+                            }
+                        }
+                        write!(w, r" \right)")
+                    }
+                }
+            },
+            Node::Prod(ref parts) => {
+                let (mut num, mut denom) = (vec![], vec![]);
+                for n in parts.iter() {
+                    match *n {
+                        Node::Pow(box (ref f, Node::Int(-1))) => denom.push(f.clone()),
+                        Node::Pow(box (ref f, Node::Int(i))) if i < 0 => denom.push(Node::Pow(box (f.clone(), Node::Int(-i)))),
+                        _ => num.push(n.clone())
+                    }
+                }
+                match (num.len(), denom.len()) {
+                    (0, 0) => write!(w, "1"),
+                    (1, 0) => write!(w, "{}", num[0]),
+                    (_, 0) => write!(w, r"\left( {} \right)", num.iter().map(|n| format!("{:X}", n)).join(" ")),
+                    (_, _) => write!(w, r"\frac{{{}}}{{{}}}",
+                                     num.iter().map(|n| format!("{:X}", n)).join(" "),
+                                     denom.iter().map(|n| format!("{:X}", n)).join(" "))
+                }
+            },
+            Node::Pow(box (ref f, ref g)) => write!(w, "{:X}^{{{:X}}}", f, g),
+            Node::Func(f, box ref g) => write!(w, r"\{} \left( {:X} \right)", f, g),
             Node::Var(ref s) => write!(w, "{}", s)
         }
     }
