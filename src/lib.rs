@@ -28,6 +28,7 @@ pub mod node;
 pub mod func;
 pub mod rational;
 pub mod eval;
+pub mod instr;
 
 pub mod prelude {
     pub use integrate::*;
