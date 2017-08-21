@@ -8,7 +8,10 @@
 #![feature(cfg_target_feature)]
 #![feature(slice_patterns)]
 #![feature(box_patterns)]
+#![feature(proc_macro)]
 
+extern crate syn;
+extern crate proc_macro;
 extern crate simd;
 extern crate rand;
 extern crate tuple;
@@ -16,6 +19,9 @@ extern crate optimization;
 extern crate fmath;
 extern crate typenum;
 extern crate itertools;
+extern crate petgraph;
+
+#[macro_use] extern crate quote;
 
 pub mod integrate;
 pub mod real;

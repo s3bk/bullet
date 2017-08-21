@@ -30,6 +30,7 @@ impl Display for Expr {
     }
 }
 
+#[derive(Debug)]
 pub enum ExprError {
     UnimplementedFunction(String)
 }

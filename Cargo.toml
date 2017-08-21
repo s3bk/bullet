@@ -17,6 +17,8 @@ env_logger = "*"
 typenum = "*"
 itertools = "*"
 quote = "*"
+petgraph = "*"
+syn = "*"
 
 [build-dependencies]
 lalrpop = "*"
