@@ -4,7 +4,7 @@ use std::iter::once;
 use std::collections::hash_map::{HashMap, Entry};
 use cast::Cast;
 use itertools::Itertools;
-use simplify;
+use simplify::{power, simplify_sum, simplify_prod};
 
 type Powers = Vec<i64>;
 type PolyElements = HashMap<Powers, Rational>;
@@ -108,14 +108,14 @@ impl Poly {
     }
 
     pub fn to_node(&self) -> Node {
-        Node::Sum(
-            self.elements.iter().map(|(powers, fac)| Node::Prod(
+        simplify_sum(
+            self.elements.iter().map(|(powers, fac)| simplify_prod(
                 once(fac.to_node().expect("...")).chain(
                     self.variables.iter().zip(powers.iter())
                         .filter(|&(_, &pow)| pow != 0)
-                        .map(|(var, &pow)| simplify::power(Node::Var(var.clone()), Node::Int(pow)))
-                ).collect()
-            )).collect()
+                        .map(|(var, &pow)| power(Node::Var(var.clone()), Node::Int(pow)))
+                )
+            ))
         )
     }
 }
