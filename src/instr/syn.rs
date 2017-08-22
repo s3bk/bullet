@@ -1,7 +1,6 @@
 use lang::parse_Expr;
 use instr::{Assembler, Vm};
 use quote::{Tokens, Ident};
-use proc_macro::TokenStream;
 
 struct Syn {
     tokens: Tokens,
@@ -37,20 +36,20 @@ impl Vm for Syn {
         let others = &parts[1..];
         quote! { #first #( .mul( #others ) )* }
     }
-    fn store(&mut self, var: Self::Var) -> Self::Storage {
+    fn store(&mut self, var: Self::Var, _uses: usize) -> (Self::Storage, Self::Var) {
         let name = format!("storage_{}", self.stored).into();
         self.stored += 1;
         self.tokens.append(quote! { let #name = #var; });
-        name
+        let var = self.load(&name);
+        (name, var)
     }
     fn load(&mut self, name: &Self::Storage) -> Self::Var {
         quote! { #name }
     }
-    fn forget(&mut self, _storage: Self::Storage) {}
 }
 
-pub fn math_syn(input: TokenStream) -> TokenStream {
-    let node = parse_Expr(&input.to_string()).expect("failed to parse")
+pub fn math_syn(input: String) -> Tokens {
+    let node = parse_Expr(&input).expect("failed to parse")
         .to_node().expect("can't convert to node");
 
     let mut syn = Syn::new();
@@ -67,5 +66,5 @@ pub fn math_syn(input: TokenStream) -> TokenStream {
     use std::io::Write;
     writeln!(File::create("/tmp/out").unwrap(), "{}", out).unwrap();
     
-    out.parse().expect("failed to parse output")
+    out
 }

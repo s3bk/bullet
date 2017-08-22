@@ -4,10 +4,12 @@ use node::Node;
 pub struct Assembler<'a, V: Vm + 'a> {
     uses: HashMap<&'a Node, usize>,
     storage: HashMap<&'a Node, V::Storage>,
+    sources: HashMap<&'a str, V::Var>,
     vm: &'a mut V
 }
 impl<'a, V: Vm + 'a> Assembler<'a, V> {
-    fn visit(&mut self, node: &'a Node) {
+    fn visit(&mut self, node: &'a Node) -> Vec<&'a str> {
+        let mut sources = vec![];
         let mut queue = vec![node];
         while let Some(node) = queue.pop() {
             match self.uses.entry(node) {
@@ -20,27 +22,40 @@ impl<'a, V: Vm + 'a> Assembler<'a, V> {
                             queue.push(g);
                         },
                         Node::Func(_, box ref g) => queue.push(g),
+                        Node::Var(ref name) => sources.push(name.as_str()),
                         _ => {}
                     }
                 },
                 Entry::Occupied(mut o) => *o.get_mut() += 1
             }
         }
+        sources
     }
 
     pub fn run(vm: &'a mut V, root: &'a Node) -> V::Var {
-        let mut assembler = Assembler {
+        Assembler {
             uses: HashMap::new(),
             storage: HashMap::new(),
+            sources: HashMap::new(),
             vm: vm
-        };
+        }.assemble(root)
+    }
+    
+    fn assemble(mut self, root: &'a Node) -> V::Var {
         // walk all nodes
-        assembler.visit(root);
+        let mut sources = self.visit(root);
+        sources.sort();
+
+        for name in sources {
+            let var = self.vm.make_source(name);
+            self.sources.insert(name, var);
+        }
 
         // build it
-        assembler.generate(root)
-    }
+        self.generate(root)
 
+    }
+        
     fn generate(&mut self, node: &'a Node) -> V::Var {
         if let Some(stored) = self.storage.get(node) {
             return self.vm.load(stored); // already computed
@@ -55,15 +70,17 @@ impl<'a, V: Vm + 'a> Assembler<'a, V> {
                 let parts = parts.iter().map(|n| self.generate(n)).collect();
                 self.vm.make_sum(parts)
             },
-            Node::Var(ref name) => self.vm.make_source(name),
+            Node::Var(ref name) => self.sources.remove(name.as_str()).expect("source was already used"),
             _ => unimplemented!()
         };
-        if self.uses[node] > 1 {
-            let (stored, var) = self.vm.store2(var);
-            self.storage.insert(node, stored);
-            var
-        } else {
-            var
+        match self.uses[node] {
+            0 => unreachable!(),
+            1 => var,
+            n => {
+                let (stored, var) = self.vm.store(var, n);
+                self.storage.insert(node, stored);
+                var
+            }
         }
     }
 }
@@ -76,14 +93,8 @@ pub trait Vm {
     fn make_source(&mut self, name: &str) -> Self::Var;
     fn make_sum(&mut self, parts: Vec<Self::Var>) -> Self::Var;
     fn make_product(&mut self, parts: Vec<Self::Var>) -> Self::Var;
-    fn store(&mut self, var: Self::Var) -> Self::Storage;
-    fn store2(&mut self, var: Self::Var) -> (Self::Storage, Self::Var) {
-        let stored = self.store(var);
-        let var = self.load(&stored);
-        (stored, var)
-    }
+    fn store(&mut self, var: Self::Var, uses: usize) -> (Self::Storage, Self::Var);
     fn load(&mut self, storage: &Self::Storage) -> Self::Var;
-    fn forget(&mut self, storage: Self::Storage);
 }
 
 mod avx_asm;

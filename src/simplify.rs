@@ -4,6 +4,7 @@ use func::Func;
 use tuple::TupleElements;
 use std::collections::HashMap;
 use std::iter::IntoIterator;
+use poly::Poly;
 
 struct SumFactors {
     factors: HashMap<Node, Rational>,
@@ -25,6 +26,7 @@ impl SumFactors {
     }
     
     fn add(&mut self, node: Node) {
+        println!("{}", node);
         match simplify(node) {
             Node::Int(i) => self.base += i,
             Node::Sum(parts) => {
@@ -164,6 +166,8 @@ pub fn function(f: Func, g: Node) -> Node {
     match (f, simplify(g)) {
         (Func::Log, Node::Pow(box (f, g))) => product((g, function(Func::Log, f))), // log (f^g) = g log f,
         (Func::Cos, Node::Prod(parts)) => Node::Func(Func::Cos, box ProductPowers::from_product(parts).to_node_and_sign().0), // cos(-x) = cos(x),
+        (Func::Cos, Node::Int(0)) => Node::Int(1),
+        (Func::Sin, Node::Int(0)) => Node::Int(0),
         (Func::Sin, Node::Prod(parts)) => match ProductPowers::from_product(parts).to_node_and_sign() {
             (g, Sign::Positive) => Node::Func(Func::Sin, box g), // nothing to do
             (g, Sign::Negative) => product((Node::Int(-1), Node::Func(Func::Sin, box g))) // sin(-x) = -sin(x)
@@ -173,18 +177,27 @@ pub fn function(f: Func, g: Node) -> Node {
 }
 
 pub fn simplify(n: Node) -> Node {
-    let r = match n.clone() {
+    match n {
         Node::Prod(parts) => ProductPowers::from_product(parts.into_iter()).to_node(),
         Node::Sum(parts) => simplify_sum(parts.into_iter()),
-        Node::Pow(box (f, g)) => power(f, g),
+        Node::Pow(box fg) => power(fg.0, fg.1),
         Node::Func(f, box g) => function(f, g),
         n => n
-    };
-    if n != r {
-        println!("{:?} = {:?}", n, r);
-        println!("{} = {}", n, r);
     }
-    r
+}
+
+pub fn simplify2(n: Node) -> Node {
+    if let Some(poly) = Poly::from_node(&n) {
+        return poly.to_node();
+    }
+
+    match n {
+        Node::Prod(parts) => simplify_prod(parts.into_iter().map(simplify2)),
+        Node::Sum(parts) => simplify_sum(parts.into_iter().map(simplify2)),
+        Node::Func(f, box g) => function(f, simplify2(g)),
+        Node::Pow(box fg) => power(simplify2(fg.0), simplify2(fg.1)),
+        n => n
+    }
 }
 
 pub fn sum<T>(sum: T) -> Node where T: TupleElements<Element=Node> {

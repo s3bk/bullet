@@ -11,7 +11,6 @@
 #![feature(proc_macro)]
 
 extern crate syn;
-extern crate proc_macro;
 extern crate simd;
 extern crate rand;
 extern crate tuple;
@@ -35,6 +34,7 @@ pub mod func;
 pub mod rational;
 pub mod eval;
 pub mod instr;
+pub mod poly;
 
 pub mod prelude {
     pub use integrate::*;

@@ -1,5 +1,6 @@
 use node::Node;
-use std::ops::{MulAssign, AddAssign, DivAssign};
+use std::ops::{MulAssign, AddAssign, DivAssign, Mul};
+use std::cmp::Ordering;
 
 fn gcd(mut ab: (i64, i64)) -> i64 {
     loop {
@@ -28,6 +29,15 @@ impl MulAssign for Rational {
     fn mul_assign(&mut self, rhs: Rational) {
         self.num *= rhs.num;
         self.denom *= rhs.denom;
+    }
+}
+impl Mul for Rational {
+    type Output = Rational;
+    fn mul(self, rhs: Rational) -> Rational {
+        Rational {
+            num: self.num * rhs.num,
+            denom: self.denom * rhs.denom
+        }
     }
 }
 impl DivAssign for Rational {
@@ -85,6 +95,19 @@ impl Rational {
 
     pub fn is_negative(&self) -> bool {
         (self.num < 0) ^ (self.denom < 0)
+    }
+    pub fn pow(&self, i: i32) -> Rational {
+        match i.cmp(&0) {
+            Ordering::Greater => Rational {
+                num: self.num.pow(i as u32),
+                denom: self.denom.pow(i as u32)
+            },
+            Ordering::Equal => Rational::from(1),
+            Ordering::Less => Rational {
+                num: self.denom.pow(-i as u32),
+                denom: self.num.pow(-i as u32)
+            }
+        }
     }
 }
 impl From<i64> for Rational {
