@@ -1,6 +1,7 @@
-use node::Node;
 use std::ops::{MulAssign, AddAssign, DivAssign, Mul};
 use std::cmp::Ordering;
+use std::fmt;
+
 
 fn gcd(mut ab: (i64, i64)) -> i64 {
     loop {
@@ -10,7 +11,7 @@ fn gcd(mut ab: (i64, i64)) -> i64 {
         }
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Rational {
     num: i64,
     denom: i64
@@ -18,6 +19,13 @@ pub struct Rational {
 impl AddAssign<i64> for Rational {
     fn add_assign(&mut self, i: i64) {
         self.num += i * self.denom;
+    }
+}
+impl AddAssign for Rational {
+    fn add_assign(&mut self, rhs: Rational) {
+        let denom = self.denom * rhs.denom;
+        self.num = self.num * rhs.denom + rhs.num * self.denom;
+        self.denom = denom;
     }
 }
 impl MulAssign<i64> for Rational {
@@ -29,65 +37,62 @@ impl MulAssign for Rational {
     fn mul_assign(&mut self, rhs: Rational) {
         self.num *= rhs.num;
         self.denom *= rhs.denom;
+        self.normalize();
     }
 }
 impl Mul for Rational {
     type Output = Rational;
     fn mul(self, rhs: Rational) -> Rational {
-        Rational {
-            num: self.num * rhs.num,
-            denom: self.denom * rhs.denom
-        }
+        Rational::new(self.num * rhs.num, self.denom * rhs.denom)
     }
 }
 impl DivAssign for Rational {
     fn div_assign(&mut self, rhs: Rational) {
         self.num *= rhs.denom;
         self.denom *= rhs.num;
+        self.normalize();
     }
 }
 impl DivAssign<i64> for Rational {
     fn div_assign(&mut self, n: i64) {
         self.denom *= n;
+        self.normalize();
     }
 }
 impl Rational {
     pub fn new(num: i64, denom: i64) -> Rational {
-        Rational { num, denom }
+        let mut r = Rational { num, denom };
+        r.normalize();
+        r
     }
-    pub fn frac(&self) -> Result<(i64, i64), &'static str> {
-        match (self.num, self.denom) {
-            (0, 0) => Err("undefined"),
-            (_, 0) => Err("infinite"),
-            (0, _) => Ok((0, 1)),
-            (n, 1) => Ok((n, 1)),
-            (1, -1) => Ok((1, 1)),
+    fn normalize(&mut self) {
+        let (n, d) = match (self.num, self.denom) {
+            (0, 0) => panic!("undefined rational"),
+            (_, 0) => panic!("infinite rational"),
+            (0, _) => (0, 1),
+            (n, 1) => (n, 1),
+            (1, -1) => (1, 1),
             (mut n, mut d) => {
                 if d < 0 {
                     n = -n;
                     d = -d;
                 }
                 let c = gcd((n, d));
-                Ok((n/c, d/c))
+                (n/c, d/c)
             }
-        }
-    }
-    
-    pub fn to_node(&self) -> Result<Node, &'static str> {
-        self.frac().map(|f| match f {
-            (n, 1) => Node::Int(n),
-            (n, d) => Node::Prod(vec![Node::Int(n), Node::Pow(box (Node::Int(d), Node::Int(-1)))])
-        })
-    }
+        };
 
-    pub fn mul(&self, node: Node) -> Result<Node, &'static str> {
-        self.frac().map(|f| match f {
-            (1, 1) => node,
-            (0, _) => Node::Int(0),
-            (n, 1) => Node::Prod(vec![Node::Int(n),                                               node]),
-            (1, d) => Node::Prod(vec![              Node::Pow(box (Node::Int(d), Node::Int(-1))), node]),
-            (n, d) => Node::Prod(vec![Node::Int(n), Node::Pow(box (Node::Int(d), Node::Int(-1))), node])
-        })
+        self.num = n;
+        self.denom = d;
+    }
+    pub fn frac(&self) -> (i64, i64) {
+        (self.num, self.denom)
+    }
+    pub fn as_int(&self) -> Option<i64> {
+        match self.frac() {
+            (i, 1) => Some(i),
+            _ => None
+        }
     }
     pub fn is_zero(&self) -> bool {
         self.num == 0
@@ -110,11 +115,20 @@ impl Rational {
         }
     }
 }
+
 impl From<i64> for Rational {
     fn from(i: i64) -> Rational {
         Rational {
             num: i,
             denom: 1
+        }
+    }
+}
+impl fmt::Display for Rational {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.frac() {
+            (n, 1) => write!(f, "{}", n),
+            (n, d) => write!(f, "{}/{}", n, d),
         }
     }
 }

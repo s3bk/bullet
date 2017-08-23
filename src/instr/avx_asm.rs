@@ -1,6 +1,6 @@
 use std::fmt;
-use lang::parse_Expr;
 use instr::{Assembler, Vm};
+use builder::Builder;
 use quote::{Tokens, Ident};
 
 impl fmt::Display for Reg {
@@ -113,8 +113,8 @@ impl Vm for AvxAsm {
 }
 
 pub fn math_avx(input: String) -> Tokens {
-    let node = parse_Expr(&input).expect("failed to parse")
-        .to_node().expect("can't convert to node");
+    let builder = Builder::new();
+    let node = builder.parse(&input).expect("failed to parse");
 
     let mut asm = AvxAsm::new();
     let r_out = match Assembler::run(&mut asm, &node) {

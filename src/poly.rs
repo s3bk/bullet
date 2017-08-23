@@ -1,123 +1,172 @@
-use node::Node;
+use node::NodeRc;
 use rational::Rational;
 use std::iter::once;
-use std::collections::hash_map::{HashMap, Entry};
-use cast::Cast;
-use itertools::Itertools;
-use simplify::{power, simplify_sum, simplify_prod};
+use std::collections::hash_map::{HashMap, Entry, Iter};
+use std::ops::{Add, Mul, MulAssign};
+use std::fmt;
+use std::cmp::{max, PartialEq, Eq};
+use std::hash::{Hash, Hasher};
 
-type Powers = Vec<i64>;
-type PolyElements = HashMap<Powers, Rational>;
+pub type Base = Vec<(NodeRc, i64)>;
+#[derive(Debug)]
 pub struct Poly {
-    variables: Vec<String>,
-    elements: PolyElements
-}
-
-
-// returns true if the node can be represented
-fn scan(node: &Node, vars: &mut Vec<String>) -> bool {
-    match *node {
-        Node::Int(_) => true,
-        Node::Var(ref name) => {
-            if !vars.contains(name) {
-                vars.push(name.clone())
-            }
-            true
-        },
-        Node::Sum(ref parts) | Node::Prod(ref parts) => parts.iter().all(|p| scan(p, vars)),
-        Node::Pow(box (ref f, Node::Int(i))) => Cast::<i32>::cast(i).is_some() && scan(f, vars),
-        _ => false
-    }
-}
-
-fn translate(vars: &[String], node: &Node) -> PolyElements {
-    match *node {
-        Node::Int(i) => once((vec![0; vars.len()], i.into())).collect(),
-        Node::Var(ref name) => {
-            let var_idx = vars.iter().position(|v| v == name).unwrap();
-            let base = (0 .. vars.len()).map(|n| (n == var_idx) as i64).collect();
-            once((base, 1.into())).collect()
-        },
-        Node::Sum(ref parts) => {
-            let mut sum = translate(vars, &parts[0]);
-            for n in &parts[1..] {
-                add(&mut sum, translate(vars, n));
-            }
-            sum
-        },
-        Node::Prod(ref parts) => {
-            let mut prod = translate(vars, &parts[0]);
-            for n in &parts[1..] {
-                prod = mul(&prod, &translate(vars, n));
-            }
-            prod
-        },
-        Node::Pow(box (ref f, Node::Int(i))) => {
-            pow(translate(vars, f), i)
-        },
-        _ => unreachable!()
-    }
-}
-
-fn pow(elements: PolyElements, i: i64) -> PolyElements {
-    elements.into_iter().map(|(mut pow, fac)| {
-        for p in pow.iter_mut() {
-            *p *= i;
-        }
-        (pow, fac.pow(i as i32))
-    }).collect()
-}
-fn mul(elements_a: &PolyElements, elements_b: &PolyElements) -> PolyElements {
-    let mut out = HashMap::new();
-    for ((pow_a, &fac_a), (pow_b, &fac_b)) in elements_a.iter().cartesian_product(elements_b.iter()) {
-        let pow = pow_a.iter().zip(pow_b.iter()).map(|(a, b)| a + b).collect();
-        let fac = fac_a * fac_b;
-        *out.entry(pow).or_insert_with(|| Rational::from(1)) *= fac;
-    }
-    out
-}
-fn add(elements_a: &mut PolyElements, elements_b: PolyElements) {
-    for (pow, fac) in elements_b.into_iter() {
-        match elements_a.entry(pow) {
-            Entry::Vacant(v) => {
-                v.insert(fac);
-            },
-            Entry::Occupied(mut o) => {
-                *o.get_mut() *= fac;
-            }
-        }
-    }
+    // never contains a zero
+    elements: HashMap<Base, Rational>,
 }
 
 impl Poly {
-    pub fn from_node(node: &Node) -> Option<Poly> {
-        let mut variables = Vec::new();
-        
-        // scan the tree and collect the list of variables
-        if !scan(node, &mut variables) {
-            return None;
+    pub fn rational(r: Rational) -> Poly {
+        Poly {
+            elements: if r.is_zero() {
+                HashMap::new()
+            } else {
+                once((vec![], r)).collect()
+            }
         }
-
-        // all good.
-        variables.sort(); // completely unnessary, but why not...
-
-        Some(Poly {
-            elements: translate(&variables, node),
-            variables
-        })
     }
-
-    pub fn to_node(&self) -> Node {
-        simplify_sum(
-            self.elements.iter().map(|(powers, fac)| simplify_prod(
-                once(fac.to_node().expect("...")).chain(
-                    self.variables.iter().zip(powers.iter())
-                        .filter(|&(_, &pow)| pow != 0)
-                        .map(|(var, &pow)| power(Node::Var(var.clone()), Node::Int(pow)))
-                )
-            ))
-        )
+    pub fn int(i: i64) -> Poly {
+        Poly::rational(i.into())
+    }
+    pub fn from_node(node: NodeRc) -> Poly {
+        Poly {
+            elements: once((vec![(node, 1)], 1.into())).collect()
+        }
+    }
+    pub fn pow_i(self, i: i32) -> Poly {
+        let elements = self.elements.into_iter()
+            .map(|((v, n), fac)| ((v, n * i), fac.pow(i)))
+            .collect();
+        Poly { elements }
+    }
+    pub fn is_zero(&self) -> bool {
+        self.elements.len() == 0
+    }
+    pub fn factors(&self) -> Iter<Base, Rational> {
+        self.elements.iter()
+    }
+    pub fn as_rational(&self) -> Option<Rational> {
+        match self.elements.len() {
+            0 => Some(0.into()),
+            1 => self.elements.get(vec![]).map(|r| Some(r)).unwrap_or(None),
+            _ => None
+        }
+    }
+    pub fn as_int(&self) -> Option<i64> {
+        self.as_rational().and_then(|r| r.as_int())
     }
 }
         
- 
+impl Add for Poly {
+    type Output = Poly;
+    fn add(mut self, rhs: Poly) -> Poly {
+        for (base, fac) in rhs.into_iter() {
+            match self.entry(base) {
+                Entry::Vacant(v) => {
+                    v.insert(fac);
+                },
+                Entry::Occupied(mut o) => {
+                    *o.get_mut() += fac;
+                    if (*o.get()).is_zero() {
+                        o.remove();
+                    }
+                }
+            }
+        }
+        self
+    }
+}
+impl Mul for Poly {
+    type Output = Poly;
+    fn mul(self, rhs: Poly) -> Poly {
+        let mut elements = HashMap::with_capacity(max(self.elements.len(), rhs.elements.len()));
+        for ((a_base, a_fac), (b_base, b_fac)) in self.elements.iter().catesian_product(rhs.elements.iter()) {
+            // multiply base vector by adding powers
+            let mut base = a_base.clone();
+            for (v, n) in b_base.iter() {
+                *base.entry(v).or_insert(0) += n;
+            }
+            base.sort();
+
+            *elements.entry(base).or_insert(0.into()) += a_fac * b_fac;
+        }
+    }
+}
+
+impl Mul<i64> for Poly {
+    type Output = Poly;
+    fn mul(mut self, rhs: i64) -> Poly {
+        self *= rhs;
+        self
+    }
+}
+impl MulAssign<i64> for Poly {
+    fn mul_assign(&mut self, rhs: i64) {
+        *self *= Rational::from(rhs);
+    }
+}
+impl MulAssign<Rational> for Poly {
+    fn mul_assign(&mut self, rhs: Rational) {
+        match self.elements.entry(vec![]) {
+            Entry::Occupied(mut o) => *o.get_mut() *= rhs,
+            _ => {} // zero-case
+        }
+    }
+}
+
+impl PartialEq for Poly {
+    fn eq(&self, rhs: &Poly) -> bool {
+        (self.elements.len() == rhs.elements.len()) && self.elements.iter().all(|k, v| rhs.elements.get(k) == Some(v))
+    }
+}
+impl Eq for Poly {}
+
+impl fmt::Display for Poly {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.elements.len() > 0 {
+            write!(f, "(")?;
+        }
+        for (base, fac) in self.elements.iter() {
+            fac.fmt(f)?;
+            for (v, n) in base.iter() {
+                write!(f, " ")?;
+                v.fmt(f)?;
+                if n != 1 {
+                    int_super(n, f)?;
+                }
+            }
+        }
+        if self.elements.len() > 0 {
+            write!(f, ")");
+        }
+        Ok(())
+    }
+}
+impl Hash for Poly {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for f in self.factors() {
+            f.hash(state);
+        }
+    }
+}
+
+fn int_super(i: i64, f: &mut fmt::Formatter) {
+    for c in i.to_string().chars() {
+        f.write_char(
+            match c {
+                '-' => '⁻',
+                '0' => '⁰',
+                '1' => '¹',
+                '2' => '²',
+                '3' => '³',
+                '4' => '⁴',
+                '5' => '⁵',
+                '6' => '⁶',
+                '7' => '⁷',
+                '8' => '⁸',
+                '9' => '⁹',
+                _ => unreachable!()
+            }
+        )?;
+    }
+    Ok(())
+}

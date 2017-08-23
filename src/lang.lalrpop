@@ -1,33 +1,33 @@
-use expr::*;
-use self::Expr::*;
+use node::*;
+use builder::Builder;
 
-grammar;
+grammar<'b>(builder: &'b Builder);
 
-pub Expr: Expr = {
-    <l:Expr> "+" <r:Factor> => Add(box (l, r)),
-    <l:Expr> "-" <r:Factor> => Sub(box (l, r)),
+pub Expr: NodeRc = {
+    <l:Expr> "+" <r:Factor> => builder.add(l, r),
+    <l:Expr> "-" <r:Factor> => builder.sub(l, r),
     Factor,
 };
 
-pub Factor: Expr = {
-    <l:Num> <r:Pow> => Mul(box(l, r)),
-    <l:Factor> "*" <r:Pow> => Mul(box(l, r)),
-    <l:Factor> "·" <r:Pow> => Mul(box(l, r)),
-    <l:Factor> "/" <r:Pow> => Div(box(l, r)),
+pub Factor: NodeRc = {
+    <l:Num> <r:Pow> => builder.mul(l, r),
+    <l:Factor> "*" <r:Pow> => builder.mul(l, r),
+    <l:Factor> "·" <r:Pow> => builder.mul(l, r),
+    <l:Factor> "/" <r:Pow> => builder.div(l, r),
     Pow,
 };
 
-pub Pow: Expr = {
-    <b:Term> "^" <e:Term> => Pow(box(b, e)),
-    <f:r"[[:alpha:]]+"> "(" <g:Expr> ")" => Func(f.into(), box g),
+pub Pow: NodeRc = {
+    <b:Term> "^" <e:Term> => builder.pow(b, e),
+    <f:r"[[:alpha:]]+"> "(" <g:Expr> ")" => builder.function(f, g),
     Term,
 };
 
-pub Term: Expr = {
+pub Term: NodeRc = {
     Num,
     Var,
     "(" <Expr> ")",
 };
 
-Num: Expr = <s:r"[0-9]+"> => Int(s.parse::<i32>().unwrap());
-Var: Expr = <s:r"[[:alpha:]]+"> => Var(s.into());
+Num: NodeRc = <s:r"[0-9]+"> => builder.decimal(s);
+Var: NodeRc = <s:r"[[:alpha:]]+"> => builder.var(s);

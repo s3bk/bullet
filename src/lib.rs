@@ -24,17 +24,17 @@ extern crate petgraph;
 
 pub mod integrate;
 pub mod real;
-pub mod expr;
+//pub mod expr;
 pub mod lang;
 pub mod cast;
 pub mod diff;
-pub mod simplify;
 pub mod node;
 pub mod func;
 pub mod rational;
 pub mod eval;
 pub mod instr;
 pub mod poly;
+pub mod builder;
 
 pub mod prelude {
     pub use integrate::*;

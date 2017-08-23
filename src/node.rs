@@ -1,130 +1,84 @@
-use itertools::Itertools;
 use std::fmt;
 use func::Func;
+use std::ops::Deref;
+use std::collections::hash_map::{HashMap, DefaultHasher, Entry};
+use std::rc::Rc;
+use std::cmp::Ordering;
+use poly::Poly;
+use std::hash::{Hash, Hasher};
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub enum Node {
-    Int(i64),
-    Var(String),
-    Sum(Vec<Node>),
-    Prod(Vec<Node>),
-    Pow(Box<(Node, Node)>),
-    Func(Func, Box<Node>)
+pub struct Cache {
+    items: HashMap<u64, NodeRc>
 }
-impl Node {
-    pub fn simplify(self) -> Node {
-        use simplify::simplify;
-        simplify(self)
+impl Cache {
+    pub fn new() -> Cache {
+        Cache { items: HashMap::new() }
     }
+    pub fn intern(&mut self, node: Node) -> &NodeRc {
+        let mut h = DefaultHasher::new();
+        node.hash(&mut h);
+        let hash = h.finish();
+        match self.items.entry(hash) {
+            Entry::Vacant(v) => v.insert(NodeRc {
+                inner: Rc::new((hash, node))
+            }),
+            Entry::Occupied(o) => {
+                assert_eq!(o.get().inner.1, node);
+                o.get()
+            }
+        }
+    }
+}
+#[derive(Clone, Debug)]
+pub struct NodeRc {
+    inner: Rc<(u64, Node)>,
+}
+impl Deref for NodeRc {
+    type Target = Node;
+    fn deref(&self) -> &Node { &self.inner.1 }
+}
+impl PartialEq for NodeRc {
+    fn eq(&self, rhs: &NodeRc) -> bool {
+        self.inner.0 == rhs.inner.0
+    }
+}
+impl Eq for NodeRc {}
+impl Hash for NodeRc {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.inner.0);
+    }
+}
+impl PartialOrd for NodeRc {
+    fn partial_cmp(&self, rhs: &NodeRc) -> Option<Ordering> {
+        self.inner.0.partial_cmp(&rhs.inner.0)
+    }
+}
+impl fmt::Display for NodeRc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.inner.1.fmt(f)
+    }
+}
+
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum Sign {
+    Negative,
+    Positive
+}
+
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub enum Node {
+    Var(String),
+    Func(Func, NodeRc),
+    Poly(Poly)
 }
 
 impl fmt::Display for Node {
     fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Node::Int(i) => write!(w, "{}", i),
-            Node::Sum(ref parts) => {
-                match parts.len() {
-                    0 => write!(w, "0"),
-                    1 => write!(w, "{}", parts[0]),
-                    _ => {
-                        write!(w, "({}", parts[0])?;
-                        for n in &parts[1..] {
-                            match *n {
-                                Node::Int(i) if i < 0 => write!(w, " - {}", -i)?,
-                                _ => write!(w, " + {}", n)?
-                            }
-                        }
-                        write!(w, ")")
-                    }
-                }
-            },
-            Node::Prod(ref parts) => {
-                let (mut num, mut denom) = (vec![], vec![]);
-                for n in parts.iter() {
-                    match *n {
-                        Node::Pow(box (ref f, Node::Int(-1))) => denom.push(f.clone()),
-                        Node::Pow(box (ref f, Node::Int(i))) if i < 0 => denom.push(Node::Pow(box (f.clone(), Node::Int(-i)))),
-                        _ => num.push(n.clone())
-                    }
-                }
-                match num.len() {
-                    0 => write!(w, "1"),
-                    1 => write!(w, "{}", num[0]),
-                    _ => write!(w, "({})", num.iter().join(" · "))
-                }?;
-                match denom.len() {
-                    0 => Ok(()),
-                    1 => write!(w, " / {}", denom[0]),
-                    _ => write!(w, " / ({})", denom.iter().join(" · "))
-                }
-            },
-            Node::Pow(box (ref f, ref g)) => match *g {
-                Node::Int(i) => write!(w, "{}{}", f, int_super(i)),
-                ref g => write!(w, "{}^{}", f, g)
-            }
-            Node::Func(f, box ref g) => write!(w, "{}({})", f, g),
-            Node::Var(ref s) => write!(w, "{}", s)
+            Node::Func(f, ref g) => write!(w, "{}({})", f, g),
+            Node::Var(ref s) => s.fmt(w),
+            Node::Poly(ref p) => p.fmt(w)
         }
     }
-}
-impl fmt::UpperHex for Node {
-fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Node::Int(i) => write!(w, "{}", i),
-            Node::Sum(ref parts) => {
-                match parts.len() {
-                    0 => write!(w, "0"),
-                    1 => write!(w, "{:X}", parts[0]),
-                    _ => {
-                        write!(w, r"\left( {:X}", parts[0])?;
-                        for n in &parts[1..] {
-                            match *n {
-                                Node::Int(i) if i < 0 => write!(w, " - {}", -i)?,
-                                _ => write!(w, " + {:X}", n)?
-                            }
-                        }
-                        write!(w, r" \right)")
-                    }
-                }
-            },
-            Node::Prod(ref parts) => {
-                let (mut num, mut denom) = (vec![], vec![]);
-                for n in parts.iter() {
-                    match *n {
-                        Node::Pow(box (ref f, Node::Int(-1))) => denom.push(f.clone()),
-                        Node::Pow(box (ref f, Node::Int(i))) if i < 0 => denom.push(Node::Pow(box (f.clone(), Node::Int(-i)))),
-                        _ => num.push(n.clone())
-                    }
-                }
-                match (num.len(), denom.len()) {
-                    (0, 0) => write!(w, "1"),
-                    (1, 0) => write!(w, "{}", num[0]),
-                    (_, 0) => write!(w, r"\left( {} \right)", num.iter().map(|n| format!("{:X}", n)).join(" ")),
-                    (_, _) => write!(w, r"\frac{{{}}}{{{}}}",
-                                     num.iter().map(|n| format!("{:X}", n)).join(" "),
-                                     denom.iter().map(|n| format!("{:X}", n)).join(" "))
-                }
-            },
-            Node::Pow(box (ref f, ref g)) => write!(w, "{:X}^{{{:X}}}", f, g),
-            Node::Func(f, box ref g) => write!(w, r"\{} \left( {:X} \right)", f, g),
-            Node::Var(ref s) => write!(w, "{}", s)
-        }
-    }
-}
-
-fn int_super(i: i64) -> String {
-    i.to_string().chars().map(|c| match c {
-        '-' => '⁻',
-        '0' => '⁰',
-        '1' => '¹',
-        '2' => '²',
-        '3' => '³',
-        '4' => '⁴',
-        '5' => '⁵',
-        '6' => '⁶',
-        '7' => '⁷',
-        '8' => '⁸',
-        '9' => '⁹',
-        _ => unreachable!()
-    }).collect()
 }

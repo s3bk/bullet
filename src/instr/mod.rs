@@ -16,12 +16,12 @@ impl<'a, V: Vm + 'a> Assembler<'a, V> {
                 Entry::Vacant(v) => {
                     v.insert(1);
                     match *node {
-                        Node::Sum(ref parts) | Node::Prod(ref parts) => queue.extend(parts.iter()),
-                        Node::Pow(box (ref f, ref g)) => {
-                            queue.push(f);
-                            queue.push(g);
+                        Node::Poly(ref p) => {
+                            for (base, _) in p.factors() {
+                                queue.extend(base.iter().map(|&(v, _)| &*v));
+                            }
                         },
-                        Node::Func(_, box ref g) => queue.push(g),
+                        Node::Func(_, ref g) => queue.push(g),
                         Node::Var(ref name) => sources.push(name.as_str()),
                         _ => {}
                     }
@@ -61,14 +61,12 @@ impl<'a, V: Vm + 'a> Assembler<'a, V> {
             return self.vm.load(stored); // already computed
         } 
         let var = match *node {
-            Node::Int(i) => self.vm.make_const(i as f32),
-            Node::Prod(ref parts) => {
-                let parts = parts.iter().map(|n| self.generate(n)).collect();
-                self.vm.make_product(parts)
-            },
-            Node::Sum(ref parts) => {
-                let parts = parts.iter().map(|n| self.generate(n)).collect();
-                self.vm.make_sum(parts)
+            Node::Poly(ref p) => {
+                if let Some(i) = p.as_int() {
+                    self.vm.make_const(i as f32)
+                } else {
+                    unimplemented!()
+                }
             },
             Node::Var(ref name) => self.sources.remove(name.as_str()).expect("source was already used"),
             _ => unimplemented!()
