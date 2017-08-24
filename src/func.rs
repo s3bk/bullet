@@ -29,13 +29,13 @@ impl Func {
             Exp => x.exp()
         }
     }
-    pub fn from_name(name: &str) -> Func {
-        match name {
+    pub fn from_name(name: &str) -> Option<Func> {
+        Some(match name {
             "sin" => Sin,
             "cos" => Cos,
             "log" => Log,
             "exp" => Exp,
-            _ => panic!("unknown function")
-        }
+            _ => return None
+        })
     }
 }

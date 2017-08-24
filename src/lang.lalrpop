@@ -1,33 +1,32 @@
-use node::*;
-use builder::Builder;
+use builder::{Builder, NodeResult};
 
 grammar<'b>(builder: &'b Builder);
 
-pub Expr: NodeRc = {
-    <l:Expr> "+" <r:Factor> => builder.add(l, r),
-    <l:Expr> "-" <r:Factor> => builder.sub(l, r),
+pub Expr: NodeResult<'input> = {
+    <l:Expr> "+" <r:Factor> => Ok(builder.add(l?, r?)),
+    <l:Expr> "-" <r:Factor> => Ok(builder.sub(l?, r?)),
     Factor,
 };
 
-pub Factor: NodeRc = {
-    <l:Num> <r:Pow> => builder.mul(l, r),
-    <l:Factor> "*" <r:Pow> => builder.mul(l, r),
-    <l:Factor> "·" <r:Pow> => builder.mul(l, r),
-    <l:Factor> "/" <r:Pow> => builder.div(l, r),
+pub Factor: NodeResult<'input> = {
+    <l:Num> <r:Pow> => Ok(builder.mul(l?, r?)),
+    <l:Factor> "*" <r:Pow> => Ok(builder.mul(l?, r?)),
+    <l:Factor> "·" <r:Pow> => Ok(builder.mul(l?, r?)),
+    <l:Factor> "/" <r:Pow> => Ok(builder.div(l?, r?)),
     Pow,
 };
 
-pub Pow: NodeRc = {
-    <b:Term> "^" <e:Term> => builder.pow(b, e),
-    <f:r"[[:alpha:]]+"> "(" <g:Expr> ")" => builder.function(f, g),
+pub Pow: NodeResult<'input> = {
+    <b:Term> "^" <e:Term> => Ok(builder.pow(b?, e?)),
+    <f:r"[[:alpha:]]+"> "(" <g:Expr> ")" => builder.function(f, g?),
     Term,
 };
 
-pub Term: NodeRc = {
+pub Term: NodeResult<'input> = {
     Num,
     Var,
     "(" <Expr> ")",
 };
 
-Num: NodeRc = <s:r"[0-9]+"> => builder.decimal(s);
-Var: NodeRc = <s:r"[[:alpha:]]+"> => builder.var(s);
+Num: NodeResult<'input> = <s:r"[0-9]+"> => builder.decimal(s);
+Var: NodeResult<'input> = <s:r"[[:alpha:]]+"> => Ok(builder.var(s));

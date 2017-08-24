@@ -15,6 +15,20 @@ pub struct Poly {
     elements: HashMap<Base, Rational>,
 }
 
+fn add_to<'a>(e: Entry<'a, Base, Rational>, r: Rational) {
+    match e {
+        Entry::Vacant(v) => {
+            v.insert(r);
+        },
+        Entry::Occupied(mut o) => {
+            *o.get_mut() += r;
+            if (*o.get()).is_zero() {
+                o.remove();
+            }
+        }
+    }
+}
+
 impl Poly {
     pub fn rational(r: Rational) -> Poly {
         Poly {
@@ -38,6 +52,9 @@ impl Poly {
         }
     }
     pub fn pow_i(self, i: i32) -> Poly {
+        if i == 0 {
+            return Poly::int(1);
+        }
         let elements = self.elements.into_iter()
             .map(|(base, fac)| (
                 base.into_iter().map(|(v, n)| (v, n * i as i64)).collect(),
@@ -76,17 +93,7 @@ impl Add for Poly {
     type Output = Poly;
     fn add(mut self, rhs: Poly) -> Poly {
         for (base, fac) in rhs.elements.into_iter() {
-            match self.elements.entry(base) {
-                Entry::Vacant(v) => {
-                    v.insert(fac);
-                },
-                Entry::Occupied(mut o) => {
-                    *o.get_mut() += fac;
-                    if (*o.get()).is_zero() {
-                        o.remove();
-                    }
-                }
-            }
+            add_to(self.elements.entry(base), fac);
         }
         self
     }
@@ -95,17 +102,22 @@ impl Mul for Poly {
     type Output = Poly;
     fn mul(self, rhs: Poly) -> Poly {
         let mut elements = HashMap::with_capacity(max(self.elements.len(), rhs.elements.len()));
-        for ((a_base, a_fac), (b_base, b_fac)) in self.elements.iter().cartesian_product(rhs.elements.iter()) {
+        for ((a_base, &a_fac), (b_base, &b_fac)) in self.elements.iter().cartesian_product(rhs.elements.iter()) {
             // multiply base vector by adding powers
             let mut base = a_base.clone();
             for &(ref v, n) in b_base.iter() {
                 match base.iter().position(|b| *v == b.0) {
-                    Some(i) => base[i].1 += n,
+                    Some(i) => {
+                        base[i].1 += n;
+                        if base[i].1 == 0 {
+                            base.swap_remove(i);
+                        }
+                    }
                     None => base.push((v.clone(), n))
                 }
             }
             base.sort();
-            *elements.entry(base).or_insert(0.into()) += *a_fac * *b_fac;
+            add_to(elements.entry(base), a_fac * b_fac);
         }
         Poly { elements }
     }
@@ -138,39 +150,58 @@ impl PartialEq for Poly {
 }
 impl Eq for Poly {}
 
+struct Tokens {
+    content: String
+}
+impl Tokens {
+    fn new() -> Tokens {
+        Tokens { content: String::new() }
+    }
+    fn push<T: fmt::Display>(&mut self, t: T) -> fmt::Result {
+        if self.content.len() > 0 {
+            write!(self.content, " ")?;
+        }
+        write!(self.content, "{}", t)
+    }
+}
+
 impl fmt::Display for Poly {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.elements.len() > 0 {
-            write!(f, "(")?;
-        }
+        let mut tokens = Tokens::new();
+    
         for (n, (base, fac)) in self.elements.iter().enumerate() {
             let (nom, denom) = fac.frac();
 
-            match nom {
-                1 if n == 0 => {},
-                1 => write!(f, " +")?,
-                -1 => write!(f, " -")?,
-                i if i < 0 => write!(f, " - {}", -i)?,
-                i if n > 0 => write!(f, " + {}", i)?,
-                i => write!(f, "{}", i)?
+            if nom < 0 {
+                tokens.push("-")?;
+            } else if n != 0 {
+                tokens.push("+")?;
             }
-            
+            if nom.abs() != 1 {
+                tokens.push(nom.abs())?;
+            }
+
             for &(ref v, n) in base.iter() {
-                write!(f, " {}", v)?;
-                if n != 1 {
-                    int_super(n, f)?;
+                if n == 1 {
+                    tokens.push(v)?;
+                } else {
+                    tokens.push(format!("{}{}", v, int_super(n)))?;
                 }
             }
 
             match denom {
                 1 => {},
-                d => write!(f, " / {}", d)?
+                d => {
+                    tokens.push("/")?;
+                    tokens.push(d)?;
+                }
             }
         }
-        if self.elements.len() > 0 {
-            write!(f, ")")?;
+        if self.elements.len() > 1 {
+            write!(f, "({})", tokens.content)
+        } else {
+            write!(f, "{}", tokens.content)
         }
-        Ok(())
     }
 }
 impl Hash for Poly {
@@ -181,24 +212,21 @@ impl Hash for Poly {
     }
 }
 
-fn int_super(i: i64, f: &mut fmt::Formatter) -> fmt::Result {
-    for c in i.to_string().chars() {
-        f.write_char(
-            match c {
-                '-' => '⁻',
-                '0' => '⁰',
-                '1' => '¹',
-                '2' => '²',
-                '3' => '³',
-                '4' => '⁴',
-                '5' => '⁵',
-                '6' => '⁶',
-                '7' => '⁷',
-                '8' => '⁸',
-                '9' => '⁹',
-                _ => unreachable!()
-            }
-        )?;
-    }
-    Ok(())
+fn int_super(i: i64) -> String {
+    i.to_string().chars().map(|c| {
+        match c {
+            '-' => '⁻',
+            '0' => '⁰',
+            '1' => '¹',
+            '2' => '²',
+            '3' => '³',
+            '4' => '⁴',
+            '5' => '⁵',
+            '6' => '⁶',
+            '7' => '⁷',
+            '8' => '⁸',
+            '9' => '⁹',
+            _ => unreachable!()
+        }
+    }).collect()
 }

@@ -37,14 +37,18 @@ pub fn diff_poly(builder: &Builder, poly: &Poly, var: &str) -> Poly {
         let df: Vec<_> = base.iter().map(|&(ref f, n)| {
             Poly::from_node(f.clone()).pow_i(n as i32 -1) * n * Poly::from_node(diff(builder, f, var)) // ∂ₓ f(x)ⁿ = n f(x)ⁿ⁻¹ ∂ₓ f(x)
         }).collect(); // [∂ₓ f₀, ∂ₓ f₁, ∂ₓ f₂, ...]
-        
+
+        for (f, df) in f.iter().zip(df.iter()) {
+            println!("d/d{} {} = {}", var, f, df);
+        }
+
         for i in 0 .. f.len() {
             let mut prod = Poly::rational(fac);
             for j in 0 .. f.len() {
                 if i == j {
-                    prod = prod * df[i].clone();
+                    prod = prod * df[j].clone();
                 } else {
-                    prod = prod * f[i].clone();
+                    prod = prod * f[j].clone();
                 }
             }
             sum = sum + prod;

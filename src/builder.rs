@@ -7,7 +7,13 @@ use lang::parse_Expr;
 use lalrpop_util;
 use cast::Cast;
 
-pub type ParseError<'a> = lalrpop_util::ParseError<usize, (usize, &'a str), ()>;
+#[derive(Debug)]
+pub enum Error<'a> {
+    MissingFunction(&'a str),
+    ParseError(lalrpop_util::ParseError<usize, (usize, &'a str), ()>),
+    IntegerError,
+}
+pub type NodeResult<'a> = Result<NodeRc, Error<'a>>;
 
 pub struct Builder {
     cache: RefCell<Cache>,
@@ -24,17 +30,20 @@ impl Builder {
     pub fn new() -> Builder {
         Builder { cache: RefCell::new(Cache::new()) }
     }
-    pub fn parse<'a>(&self, expr: &'a str) -> Result<NodeRc, ParseError<'a>> {
-        parse_Expr(self, expr)
+    pub fn parse<'a>(&self, expr: &'a str) -> NodeResult<'a> {
+        match parse_Expr(self, expr) {
+            Ok(r) => r,
+            Err(e) => Err(Error::ParseError(e))
+        }
     }
     pub fn int(&self, i: i64) -> NodeRc {
         self.intern(Node::Poly(Poly::int(i)))
     }
     
     /// decimal number
-    pub fn decimal(&self, n: &str) -> NodeRc {
-        let i: i64 = n.parse().expect("failed to parse decimal");
-        self.int(i)
+    pub fn decimal<'a>(&self, n: &'a str) -> NodeResult<'a> {
+        let i: i64 = n.parse().map_err(|_| Error::IntegerError)?;
+        Ok(self.int(i))
     }
 
     pub fn poly(&self, p: Poly) -> NodeRc {
@@ -83,8 +92,9 @@ impl Builder {
     }
 
     /// f(g) (by name)
-    pub fn function(&self, name: &str, arg: NodeRc) -> NodeRc {
-        self.func(Func::from_name(name), arg)
+    pub fn function<'a>(&self, name: &'a str, arg: NodeRc) -> Result<NodeRc, Error<'a>> {
+        let f = Func::from_name(name).ok_or(Error::MissingFunction(name))?;
+        Ok(self.func(f, arg))
     }
 
     /// make a name variable
