@@ -3,7 +3,6 @@ use func::Func;
 use std::ops::Deref;
 use std::collections::hash_map::{HashMap, DefaultHasher, Entry};
 use std::rc::Rc;
-use std::cmp::Ordering;
 use poly::Poly;
 use std::hash::{Hash, Hasher};
 
@@ -20,47 +19,38 @@ impl Cache {
         let hash = h.finish();
         match self.items.entry(hash) {
             Entry::Vacant(v) => v.insert(NodeRc {
-                inner: Rc::new((hash, node))
+                inner: Rc::new((node, hash))
             }).clone(),
             Entry::Occupied(o) => {
-                assert_eq!(o.get().inner.1, node);
+                assert_eq!(o.get().inner.0, node);
                 o.get().clone()
             }
         }
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Ord, PartialOrd)]
 pub struct NodeRc {
-    inner: Rc<(u64, Node)>,
+    inner: Rc<(Node, u64)>,
 }
 impl Deref for NodeRc {
     type Target = Node;
-    fn deref(&self) -> &Node { &self.inner.1 }
+    fn deref(&self) -> &Node { &self.inner.0 }
 }
 impl PartialEq for NodeRc {
     fn eq(&self, rhs: &NodeRc) -> bool {
-        self.inner.0 == rhs.inner.0
+        self.inner.1 == rhs.inner.1
     }
 }
 impl Eq for NodeRc {}
 impl Hash for NodeRc {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.inner.0);
+        state.write_u64(self.inner.1);
     }
 }
-impl PartialOrd for NodeRc {
-    fn partial_cmp(&self, rhs: &NodeRc) -> Option<Ordering> {
-        self.inner.0.partial_cmp(&rhs.inner.0)
-    }
-}
-impl Ord for NodeRc {
-    fn cmp(&self, rhs: &NodeRc) -> Ordering {
-        self.inner.0.cmp(&rhs.inner.0)
-    }
-}
+
 impl fmt::Display for NodeRc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.inner.1.fmt(f)
+        self.inner.0.fmt(f)
     }
 }
 
@@ -71,7 +61,7 @@ pub enum Sign {
     Positive
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Node {
     Var(String),
     Func(Func, NodeRc),

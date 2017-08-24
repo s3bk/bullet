@@ -1,5 +1,5 @@
-use std::ops::{MulAssign, AddAssign, DivAssign, Mul};
-use std::cmp::Ordering;
+use std::ops::{MulAssign, AddAssign, DivAssign, Mul, Div};
+use std::cmp::{Ordering, Ord, PartialOrd};
 use std::fmt;
 
 
@@ -19,6 +19,7 @@ pub struct Rational {
 impl AddAssign<i64> for Rational {
     fn add_assign(&mut self, i: i64) {
         self.num += i * self.denom;
+        self.normalize();
     }
 }
 impl AddAssign for Rational {
@@ -26,11 +27,13 @@ impl AddAssign for Rational {
         let denom = self.denom * rhs.denom;
         self.num = self.num * rhs.denom + rhs.num * self.denom;
         self.denom = denom;
+        self.normalize();
     }
 }
 impl MulAssign<i64> for Rational {
     fn mul_assign(&mut self, n: i64) {
         self.num *= n;
+        self.normalize();
     }
 }
 impl MulAssign for Rational {
@@ -57,6 +60,13 @@ impl DivAssign<i64> for Rational {
     fn div_assign(&mut self, n: i64) {
         self.denom *= n;
         self.normalize();
+    }
+}
+impl Div<Rational> for Rational {
+    type Output = Rational;
+    fn div(mut self, rhs: Rational) -> Rational {
+        self /= rhs;
+        self
     }
 }
 impl Rational {
@@ -118,7 +128,18 @@ impl Rational {
         self.num as f64 / self.denom as f64
     }
 }
-
+impl Ord for Rational {
+    fn cmp(&self, rhs: &Rational) -> Ordering {
+        let a = self.num * rhs.denom;
+        let b = rhs.num * self.denom;
+        a.cmp(&b)
+    }
+}
+impl PartialOrd for Rational {
+    fn partial_cmp(&self, rhs: &Rational) -> Option<Ordering> {
+        Some(self.cmp(rhs))
+    }
+}
 impl From<i64> for Rational {
     fn from(i: i64) -> Rational {
         Rational {

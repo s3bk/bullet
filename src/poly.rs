@@ -4,7 +4,7 @@ use std::iter::once;
 use std::collections::hash_map::{HashMap, Entry, Iter};
 use std::ops::{Add, Mul, MulAssign};
 use std::fmt::{self, Write};
-use std::cmp::{max, PartialEq, Eq};
+use std::cmp::{max, PartialEq, Eq, PartialOrd, Ord, Ordering};
 use std::hash::{Hash, Hasher};
 use itertools::Itertools;
 
@@ -55,13 +55,29 @@ impl Poly {
         if i == 0 {
             return Poly::int(1);
         }
-        let elements = self.elements.into_iter()
-            .map(|(base, fac)| (
-                base.into_iter().map(|(v, n)| (v, n * i as i64)).collect(),
-                fac.pow(i)
-            ))
-            .collect();
-        Poly { elements }
+        if i > 0 {
+            self.pow_n(i as u32)
+        } else {
+            if let Some(r) = self.as_rational() {
+                Poly::rational(Rational::from(1) / r)
+            } else {
+                unimplemented!()
+            }
+        }
+    }
+    pub fn pow_n(mut self, mut n: u32) -> Poly {
+        let mut p = Poly::int(1);
+        while n > 1 {
+            if n & 1 == 1 {
+                p = p * self.clone();
+            }
+            n /= 2;
+            self = self.clone() * self.clone();
+        }
+        if n == 1 {
+            p = p * self
+        }
+        p
     }
     pub fn is_zero(&self) -> bool {
         self.elements.len() == 0
@@ -116,7 +132,10 @@ impl Mul for Poly {
                     None => base.push((v.clone(), n))
                 }
             }
-            base.sort();
+            base.sort_by(|a, b| match a.0.cmp(&b.0) {
+                Ordering::Equal => a.1.cmp(&b.1),
+                o => o
+            });
             add_to(elements.entry(base), a_fac * b_fac);
         }
         Poly { elements }
@@ -165,11 +184,63 @@ impl Tokens {
     }
 }
 
+impl PartialOrd for Poly {
+    fn partial_cmp(&self, rhs: &Poly) -> Option<Ordering> {
+        Some(cmp_poly(self, rhs))
+    }
+}
+impl Ord for Poly {
+    fn cmp(&self, rhs: &Poly) -> Ordering {
+        cmp_poly(self, rhs)
+    }
+}
+
+fn cmp_poly(a: &Poly, b: &Poly) -> Ordering {
+    match a.elements.len().cmp(&b.elements.len()) {
+        Ordering::Equal => {
+            let mut e_a: Vec<_> = a.elements.iter().collect();
+            let mut e_b: Vec<_> = b.elements.iter().collect();
+            e_a.sort();
+            e_b.sort();
+            for (a, b) in e_a.iter().zip(e_b.iter()) {
+                match cmp_base(a.0, b.0) {
+                    Ordering::Equal => continue,
+                    o => return o
+                }
+            }
+            Ordering::Equal
+        },
+        o => o
+    }
+}
+
+fn cmp_base(a: &[(NodeRc, i64)], b: &[(NodeRc, i64)]) -> Ordering {
+    match a.len().cmp(&b.len()) {
+        Ordering::Equal => {},
+        o => return o
+    }
+    for (a, b) in a.iter().zip(b.iter()) {
+        match a.0.cmp(&b.0) {
+            Ordering::Equal => continue,
+            o => return o
+        }
+    }
+    for (a, b) in a.iter().zip(b.iter()) {
+        match a.1.cmp(&b.1) {
+            Ordering::Equal => continue,
+            o => return o
+        }
+    }
+    Ordering::Equal
+}
+
 impl fmt::Display for Poly {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut tokens = Tokens::new();
-    
-        for (n, (base, fac)) in self.elements.iter().enumerate() {
+        let mut elements: Vec<_> = self.elements.iter().collect();
+        elements.sort_by(|a, b| cmp_base(a.0, b.0));
+
+        for (n, &(base, fac)) in elements.iter().enumerate() {
             let (nom, denom) = fac.frac();
 
             if nom < 0 {
