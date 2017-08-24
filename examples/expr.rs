@@ -1,5 +1,6 @@
 extern crate math;
 use math::builder::Builder;
+use math::diff::diff;
 
 fn main() {
     let exprs = [
@@ -12,6 +13,7 @@ fn main() {
         match builder.parse(expr) {
             Ok(n) => {
                 println!(" -> {}", n);
+                println!(" d/dx -> {}", diff(&builder, &n, "x"));
             },
             Err(_) => panic!("failed to parse {}", expr)
         }

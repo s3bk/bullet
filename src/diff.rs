@@ -30,18 +30,26 @@ pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> NodeRc {
 
 pub fn diff_poly(builder: &Builder, poly: &Poly, var: &str) -> Poly {
     let mut sum = Poly::int(0);
-    for (base, &factor) in poly.factors() {
-        // ∂ₓ ∏ᵢ fᵢ(x)ⁿ = ∏ᵢ n fᵢ'(x) / ∏ᵢ fᵢ(x)
-        let mut df_prod = Poly::rational(factor);
-
-        for &(ref f, n) in base.iter() {
-            df_prod = df_prod * Poly::from_node(diff(builder, f, var)) * n;
-            
-            if df_prod.is_zero() {
-                break;
+    for (base, &fac) in poly.factors() {
+        let f: Vec<_> = base.iter().map(|&(ref f, n)| {
+            Poly::from_node(f.clone()).pow_i(n as i32)
+        }).collect(); // [f₀, f₁, f₂, ...]
+        let df: Vec<_> = base.iter().map(|&(ref f, n)| {
+            Poly::from_node(f.clone()).pow_i(n as i32 -1) * n * Poly::from_node(diff(builder, f, var)) // ∂ₓ f(x)ⁿ = n f(x)ⁿ⁻¹ ∂ₓ f(x)
+        }).collect(); // [∂ₓ f₀, ∂ₓ f₁, ∂ₓ f₂, ...]
+        
+        for i in 0 .. f.len() {
+            let mut prod = Poly::rational(fac);
+            for j in 0 .. f.len() {
+                if i == j {
+                    prod = prod * df[i].clone();
+                } else {
+                    prod = prod * f[i].clone();
+                }
             }
+            sum = sum + prod;
         }
-        sum = sum + df_prod;
     }
-    sum * poly.clone().pow_i(-1)
+
+    sum
 }

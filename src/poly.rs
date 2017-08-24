@@ -1,4 +1,4 @@
-use node::NodeRc;
+use node::{Node, NodeRc};
 use rational::Rational;
 use std::iter::once;
 use std::collections::hash_map::{HashMap, Entry, Iter};
@@ -29,6 +29,10 @@ impl Poly {
         Poly::rational(i.into())
     }
     pub fn from_node(node: NodeRc) -> Poly {
+        if let Node::Poly(ref p) = *node {
+            return p.clone();
+        }
+                
         Poly {
             elements: once((vec![(node, 1)], 1.into())).collect()
         }
@@ -57,6 +61,14 @@ impl Poly {
     }
     pub fn as_int(&self) -> Option<i64> {
         self.as_rational().and_then(|r| r.as_int())
+    }
+    // split into vec of polynoms, each containing one summand
+    pub fn split(&self) -> Vec<Poly> {
+        let mut out = Vec::with_capacity(self.elements.len());
+        for (base, &fac) in self.elements.iter() {
+            out.push(Poly { elements: once((base.clone(), fac)).collect() });
+        }
+        out
     }
 }
         
