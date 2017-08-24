@@ -114,6 +114,9 @@ impl Rational {
             }
         }
     }
+    pub fn to_f64(&self) -> f64 {
+        self.num as f64 / self.denom as f64
+    }
 }
 
 impl From<i64> for Rational {

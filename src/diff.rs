@@ -21,7 +21,8 @@ pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> NodeRc {
                 dg
             )
         },
-        Node::Var(ref s) => builder.int((s == var) as i64)
+        Node::Var(ref s) => builder.int((s == var) as i64),
+        Node::Poly(ref p) => builder.poly(diff_poly(builder, p, var))
     };
     println!("d/d{} {} = {}", var, node, out);
     out
@@ -29,9 +30,9 @@ pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> NodeRc {
 
 pub fn diff_poly(builder: &Builder, poly: &Poly, var: &str) -> Poly {
     let mut sum = Poly::int(0);
-    for (base, factor) in poly.factors() {
+    for (base, &factor) in poly.factors() {
         // ∂ₓ ∏ᵢ fᵢ(x)ⁿ = ∏ᵢ n fᵢ'(x) / ∏ᵢ fᵢ(x)
-        let mut df_prod = Poly::int(1);
+        let mut df_prod = Poly::rational(factor);
 
         for &(ref f, n) in base.iter() {
             df_prod = df_prod * Poly::from_node(diff(builder, f, var)) * n;
@@ -42,5 +43,5 @@ pub fn diff_poly(builder: &Builder, poly: &Poly, var: &str) -> Poly {
         }
         sum = sum + df_prod;
     }
-    sum * poly.pow_i(-1)
+    sum * poly.clone().pow_i(-1)
 }

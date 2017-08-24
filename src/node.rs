@@ -14,17 +14,17 @@ impl Cache {
     pub fn new() -> Cache {
         Cache { items: HashMap::new() }
     }
-    pub fn intern(&mut self, node: Node) -> &NodeRc {
+    pub fn intern(&mut self, node: Node) -> NodeRc {
         let mut h = DefaultHasher::new();
         node.hash(&mut h);
         let hash = h.finish();
         match self.items.entry(hash) {
             Entry::Vacant(v) => v.insert(NodeRc {
                 inner: Rc::new((hash, node))
-            }),
+            }).clone(),
             Entry::Occupied(o) => {
                 assert_eq!(o.get().inner.1, node);
-                o.get()
+                o.get().clone()
             }
         }
     }
@@ -51,6 +51,11 @@ impl Hash for NodeRc {
 impl PartialOrd for NodeRc {
     fn partial_cmp(&self, rhs: &NodeRc) -> Option<Ordering> {
         self.inner.0.partial_cmp(&rhs.inner.0)
+    }
+}
+impl Ord for NodeRc {
+    fn cmp(&self, rhs: &NodeRc) -> Ordering {
+        self.inner.0.cmp(&rhs.inner.0)
     }
 }
 impl fmt::Display for NodeRc {

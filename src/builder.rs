@@ -4,23 +4,27 @@ use func::Func;
 use rational::Rational;
 use poly::Poly;
 use lang::parse_Expr;
+use lalrpop_util;
+use cast::Cast;
+
+pub type ParseError<'a> = lalrpop_util::ParseError<usize, (usize, &'a str), ()>;
 
 pub struct Builder {
     cache: RefCell<Cache>,
 }
 
 fn poly(node: NodeRc) -> Poly {
-    match *node {
-        Node::Poly(p) => p,
-        _ => Poly::from_node(node)
+    if let Node::Poly(ref p) = *node {
+        return p.clone();
     }
+    Poly::from_node(node)
 }
     
 impl Builder {
     pub fn new() -> Builder {
-        Builder { cache: Cache::new() }
+        Builder { cache: RefCell::new(Cache::new()) }
     }
-    pub fn parse(&self, expr: &str) -> Result<NodeRc, ()> {
+    pub fn parse<'a>(&self, expr: &'a str) -> Result<NodeRc, ParseError<'a>> {
         parse_Expr(self, expr)
     }
     pub fn int(&self, i: i64) -> NodeRc {
@@ -29,11 +33,11 @@ impl Builder {
     
     /// decimal number
     pub fn decimal(&self, n: &str) -> NodeRc {
-        let i: i64 = n.parse(n).expect("failed to parse decimal");
+        let i: i64 = n.parse().expect("failed to parse decimal");
         self.int(i)
     }
 
-    fn poly(&self, p: Poly) -> NodeRc {
+    pub fn poly(&self, p: Poly) -> NodeRc {
         self.intern(Node::Poly(p))
     }
     
@@ -59,8 +63,8 @@ impl Builder {
 
     /// a ^ b
     pub fn pow(&self, a: NodeRc, b: NodeRc) -> NodeRc {
-        if let Node::Poly(p) = b {
-            if let Some(i) = p.as_rational().as_int() {          
+        if let Node::Poly(ref p) = *b {
+            if let Some(i) = p.as_int().and_then(|i| i.cast()) {          
                 return self.pow_i(a, i);
             }
         }
@@ -69,7 +73,7 @@ impl Builder {
         self.func(Func::Exp, g)
     }
     /// a ^ i
-    pub fn pow_i(&self, a: NodeRc, i: i64) -> NodeRc {
+    pub fn pow_i(&self, a: NodeRc, i: i32) -> NodeRc {
         self.poly(poly(a).pow_i(i))
     }
 
@@ -92,7 +96,7 @@ impl Builder {
     pub fn product<I>(&self, factors: I) -> NodeRc where I: IntoIterator<Item=NodeRc> {
         let mut p = Poly::int(1);
         for f in factors.into_iter() {
-            p *= poly(f);
+            p = p * poly(f);
         }
         self.poly(p)
     }
@@ -101,7 +105,7 @@ impl Builder {
     pub fn sum<I>(&self, summands: I) -> NodeRc where I: IntoIterator<Item=NodeRc> {
         let mut p = Poly::int(0);
         for n in summands.into_iter() {
-            p += poly(n);
+            p = p + poly(n);
         }
         self.poly(p)
     }
@@ -111,6 +115,6 @@ impl Builder {
     }
     
     pub fn intern(&self, node: Node) -> NodeRc {
-        self.cache.intern(node)
+        self.cache.borrow_mut().intern(node).clone()
     }
 }

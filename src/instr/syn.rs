@@ -1,6 +1,7 @@
 use builder::Builder;
 use instr::{Assembler, Vm};
 use quote::{Tokens, Ident};
+use std::mem;
 
 struct Syn {
     tokens: Tokens,
@@ -18,8 +19,11 @@ impl Syn {
 impl Vm for Syn {
     type Var = Tokens;
     type Storage = Ident;
-    
-    fn make_const(&mut self, x: f32) -> Self::Var {
+
+    fn make_int(&mut self, i: i64) -> Self::Var {
+        quote! { #i }
+    }
+    fn make_const(&mut self, x: f64) -> Self::Var {
         quote! { #x }
     }
     fn make_source(&mut self, name: &str) -> Self::Var {
@@ -36,12 +40,14 @@ impl Vm for Syn {
         let others = &parts[1..];
         quote! { #first #( .mul( #others ) )* }
     }
-    fn store(&mut self, var: Self::Var, _uses: usize) -> (Self::Storage, Self::Var) {
+    fn store(&mut self, var: &mut Self::Var, _uses: usize) -> Self::Storage {
         let name = format!("storage_{}", self.stored).into();
         self.stored += 1;
+
+        let var = mem::replace(var, self.load(&name));
         self.tokens.append(quote! { let #name = #var; });
-        let var = self.load(&name);
-        (name, var)
+
+        name
     }
     fn load(&mut self, name: &Self::Storage) -> Self::Var {
         quote! { #name }

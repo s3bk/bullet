@@ -81,10 +81,16 @@ impl Vm for AvxAsm {
     type Var = Source;
     type Storage = Reg;
     
-    fn make_const(&mut self, c: f32) -> Self::Var {
-        let idx = self.consts.len();
-        self.consts.push(c);
-        Source::Const(idx as u16)
+    fn make_const(&mut self, c: f64) -> Self::Var {
+        let c = c as f32;
+        match self.consts.iter().position(|&d| c == d) {
+            Some(idx) => Source::Const(idx as u16),
+            None => {
+                let idx = self.consts.len();
+                self.consts.push(c);
+                Source::Const(idx as u16)
+            }
+        }
     }
     fn make_source(&mut self, name: &str) -> Self::Var {
         let r = self.alloc();
@@ -98,11 +104,11 @@ impl Vm for AvxAsm {
     fn make_product(&mut self, parts: Vec<Self::Var>) -> Self::Var {
         self.fold(parts, "vmulps")
     }
-    fn store(&mut self, var: Self::Var, uses: usize) -> (Self::Storage, Self::Var) {
-        match var {
+    fn store(&mut self, var: &mut Self::Var, uses: usize) -> Self::Storage {
+        match *var {
             Source::Reg(r) => {
                 self.registers[r.0 as usize] += uses;
-                (r, var)
+                r
             },
             Source::Const(_) => panic!("can't store a const")
         }

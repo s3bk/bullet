@@ -3,12 +3,13 @@ use rational::Rational;
 use std::iter::once;
 use std::collections::hash_map::{HashMap, Entry, Iter};
 use std::ops::{Add, Mul, MulAssign};
-use std::fmt;
+use std::fmt::{self, Write};
 use std::cmp::{max, PartialEq, Eq};
 use std::hash::{Hash, Hasher};
+use itertools::Itertools;
 
 pub type Base = Vec<(NodeRc, i64)>;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Poly {
     // never contains a zero
     elements: HashMap<Base, Rational>,
@@ -34,7 +35,10 @@ impl Poly {
     }
     pub fn pow_i(self, i: i32) -> Poly {
         let elements = self.elements.into_iter()
-            .map(|((v, n), fac)| ((v, n * i), fac.pow(i)))
+            .map(|(base, fac)| (
+                base.into_iter().map(|(v, n)| (v, n * i as i64)).collect(),
+                fac.pow(i)
+            ))
             .collect();
         Poly { elements }
     }
@@ -47,7 +51,7 @@ impl Poly {
     pub fn as_rational(&self) -> Option<Rational> {
         match self.elements.len() {
             0 => Some(0.into()),
-            1 => self.elements.get(vec![]).map(|r| Some(r)).unwrap_or(None),
+            1 => self.elements.get(&vec![]).map(|&r| Some(r)).unwrap_or(None),
             _ => None
         }
     }
@@ -59,8 +63,8 @@ impl Poly {
 impl Add for Poly {
     type Output = Poly;
     fn add(mut self, rhs: Poly) -> Poly {
-        for (base, fac) in rhs.into_iter() {
-            match self.entry(base) {
+        for (base, fac) in rhs.elements.into_iter() {
+            match self.elements.entry(base) {
                 Entry::Vacant(v) => {
                     v.insert(fac);
                 },
@@ -79,16 +83,19 @@ impl Mul for Poly {
     type Output = Poly;
     fn mul(self, rhs: Poly) -> Poly {
         let mut elements = HashMap::with_capacity(max(self.elements.len(), rhs.elements.len()));
-        for ((a_base, a_fac), (b_base, b_fac)) in self.elements.iter().catesian_product(rhs.elements.iter()) {
+        for ((a_base, a_fac), (b_base, b_fac)) in self.elements.iter().cartesian_product(rhs.elements.iter()) {
             // multiply base vector by adding powers
             let mut base = a_base.clone();
-            for (v, n) in b_base.iter() {
-                *base.entry(v).or_insert(0) += n;
+            for &(ref v, n) in b_base.iter() {
+                match base.iter().position(|b| *v == b.0) {
+                    Some(i) => base[i].1 += n,
+                    None => base.push((v.clone(), n))
+                }
             }
             base.sort();
-
-            *elements.entry(base).or_insert(0.into()) += a_fac * b_fac;
+            *elements.entry(base).or_insert(0.into()) += *a_fac * *b_fac;
         }
+        Poly { elements }
     }
 }
 
@@ -106,16 +113,15 @@ impl MulAssign<i64> for Poly {
 }
 impl MulAssign<Rational> for Poly {
     fn mul_assign(&mut self, rhs: Rational) {
-        match self.elements.entry(vec![]) {
-            Entry::Occupied(mut o) => *o.get_mut() *= rhs,
-            _ => {} // zero-case
+        for fac in self.elements.values_mut() {
+            *fac *= rhs;
         }
     }
 }
 
 impl PartialEq for Poly {
     fn eq(&self, rhs: &Poly) -> bool {
-        (self.elements.len() == rhs.elements.len()) && self.elements.iter().all(|k, v| rhs.elements.get(k) == Some(v))
+        (self.elements.len() == rhs.elements.len()) && self.elements.iter().all(|(k, v)| rhs.elements.get(k) == Some(v))
     }
 }
 impl Eq for Poly {}
@@ -125,18 +131,32 @@ impl fmt::Display for Poly {
         if self.elements.len() > 0 {
             write!(f, "(")?;
         }
-        for (base, fac) in self.elements.iter() {
-            fac.fmt(f)?;
-            for (v, n) in base.iter() {
-                write!(f, " ")?;
-                v.fmt(f)?;
+        for (n, (base, fac)) in self.elements.iter().enumerate() {
+            let (nom, denom) = fac.frac();
+
+            match nom {
+                1 if n == 0 => {},
+                1 => write!(f, " +")?,
+                -1 => write!(f, " -")?,
+                i if i < 0 => write!(f, " - {}", -i)?,
+                i if n > 0 => write!(f, " + {}", i)?,
+                i => write!(f, "{}", i)?
+            }
+            
+            for &(ref v, n) in base.iter() {
+                write!(f, " {}", v)?;
                 if n != 1 {
                     int_super(n, f)?;
                 }
             }
+
+            match denom {
+                1 => {},
+                d => write!(f, " / {}", d)?
+            }
         }
         if self.elements.len() > 0 {
-            write!(f, ")");
+            write!(f, ")")?;
         }
         Ok(())
     }
@@ -149,7 +169,7 @@ impl Hash for Poly {
     }
 }
 
-fn int_super(i: i64, f: &mut fmt::Formatter) {
+fn int_super(i: i64, f: &mut fmt::Formatter) -> fmt::Result {
     for c in i.to_string().chars() {
         f.write_char(
             match c {

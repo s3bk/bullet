@@ -19,6 +19,7 @@ extern crate fmath;
 extern crate typenum;
 extern crate itertools;
 extern crate petgraph;
+extern crate lalrpop_util;
 
 #[macro_use] extern crate quote;
 

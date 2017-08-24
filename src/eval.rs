@@ -34,13 +34,15 @@ impl EvalContext {
     pub fn eval(&self, node: &Node) -> Result<f64, EvalError> {
         match *node {
             Node::Poly(ref p) => {
-                let mut prod = 1.0;
+                let mut sum = 0.0;
                 for (base, r) in p.factors() {
+                    let mut prod = r.to_f64();
                     for &(ref f, n) in base.iter() {
                         prod *= self.eval(f)?.powi(n.cast().ok_or(EvalError::Overflow)?);
                     }
+                    sum += prod;
                 }
-                Ok(prod)
+                Ok(sum)
             }
             Node::Func(f, ref g) => Ok(f.eval_f64(self.eval(g)?)),
             Node::Var(ref s) => self.defines.get(s).cloned().ok_or(EvalError::UndefinedVar(s.clone()))
