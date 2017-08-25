@@ -54,6 +54,54 @@ pub trait Real:
     }
 }
 
+macro_rules! impl_real {
+    ($($t:ident),*) => ( $(
+        impl Real for $t {
+            const PI: Self = ::std::$t::consts::PI;
+            type Bool = bool;
+            type Scalar = $t;
+            type Iterator = ::std::iter::Once<$t>;
+
+            fn splat(s: Self::Scalar) -> Self {
+                s
+            }
+            
+            fn values(self) -> Self::Iterator {
+                ::std::iter::once(self)
+            }
+            
+            fn int(v: i16) -> Self { v.into() }
+            fn frac(nom: i16, denom: u16) -> Self {
+                $t::from(nom) / $t::from(denom)
+            }
+            
+            fn wrap(self, at: Self, span: Self) -> Self {
+                if self > at { self - span } else { self }
+            }
+
+            fn uniform01<R: Rng>(rng: &mut R) -> Self {
+                let uniform01 = Uniform::new(0., 1.);
+                uniform01.ind_sample(rng)
+            }
+
+            fn abs(self) -> Self { self.abs() }
+            fn sqrt(self) -> Self { self.sqrt() }
+            
+            fn lt(self, rhs: Self) -> Self::Bool { self < rhs }
+            fn le(self, rhs: Self) -> Self::Bool { self <= rhs }
+            fn gt(self, rhs: Self) -> Self::Bool { self > rhs }
+            fn ge(self, rhs: Self) -> Self::Bool { self >= rhs }
+            fn eq(self, rhs: Self) -> Self::Bool { self == rhs }
+
+            fn select(self, other: Self, cond: Self::Bool) -> Self {
+                if cond { self } else { other }
+            }
+        }
+    )* )
+}
+
+impl_real!(f32, f64);
+
 macro_rules! first_t {
     ($A:ty, $B:tt) => ($A)
 }
