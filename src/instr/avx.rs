@@ -1,22 +1,27 @@
 use std::fmt;
-use instr::{Assembler, Vm};
-use builder::Builder;
+use instr::{Compiler, Vm};
+use node::NodeRc;
+use simd::x86::avx::f32x8;
 use quote::{Tokens, Ident};
+use memmap::{Mmap, Protection};
 
 impl fmt::Display for Reg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ymm{}", self.0)
     }
 }
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 struct Reg(u8);
 enum Source {
     Reg(Reg),
     Const(u16)
 }
-
+enum Instr {
+    Add(Reg, Reg, Source),
+    Mul(Reg, Reg, Source)
+}
 struct AvxAsm {
-    lines: Vec<String>,
+    instr: Vec<Instr>,
     registers: [usize; 16],
     used: u8,
     inputs: Vec<(Ident, Reg)>,
@@ -25,7 +30,7 @@ struct AvxAsm {
 impl AvxAsm {
     fn new() -> AvxAsm {
         AvxAsm {
-            lines: vec![],
+            instr: vec![],
             used: 0,
             inputs: vec![],
             consts: vec![],
@@ -47,7 +52,7 @@ impl AvxAsm {
         self.registers[r.0 as usize] -= 1;
     }
     
-    fn fold(&mut self, parts: Vec<Source>, instr: &str) -> Source {
+    fn fold(&mut self, parts: Vec<Source>, f: &Fn(Reg, Reg, Source) -> Instr) -> Source {
         // get a non-const source
         let (skip, mut r_last) = parts.iter().enumerate().filter_map(|(i, p)| {
             match *p {
@@ -64,11 +69,8 @@ impl AvxAsm {
             }
 
             let r_acc = self.alloc();
-            let arg2 = match part {
-                Source::Const(idx) => format!("[rdi+32*{}]", idx),
-                Source::Reg(r) => format!("{}", r)
-            };
-            self.lines.push(format!("{} {}, {}, {};\n", instr, r_acc, r_last, arg2));
+            self.instr.push(f(r_acc, r_last, part));
+
             
             r_last = r_acc;
         }
@@ -99,10 +101,10 @@ impl Vm for AvxAsm {
     }
     
     fn make_sum(&mut self, parts: Vec<Self::Var>) -> Self::Var {
-        self.fold(parts, "vaddps")
+        self.fold(parts, &|a, b, c| Instr::Add(a, b, c))
     }
     fn make_product(&mut self, parts: Vec<Self::Var>) -> Self::Var {
-        self.fold(parts, "vmulps")
+        self.fold(parts, &|a, b, c| Instr::Mul(a, b, c))
     }
     fn store(&mut self, var: &mut Self::Var, uses: usize) -> Self::Storage {
         match *var {
@@ -118,16 +120,23 @@ impl Vm for AvxAsm {
     }
 }
 
-pub fn math_avx(input: String) -> Tokens {
-    let builder = Builder::new();
-    let node = builder.parse(&input).expect("failed to parse");
-
+pub fn asm(node: NodeRc) -> Tokens { 
     let mut asm = AvxAsm::new();
-    let r_out = match Assembler::run(&mut asm, &node) {
+    let r_out = match Compiler::run(&mut asm, &node) {
         Source::Reg(r) => r,
         Source::Const(_) => panic!("returned a const")
     };
-    let content: String = asm.lines.into_iter().collect();
+    let mut lines = String::new();
+    for instr in asm.instr {
+        use std::fmt::Write;
+        match instr {
+            Instr::Add(r0, r1, Source::Reg(r2))    => writeln!(lines, "\tvaddps {}, {}, {}", r0, r1, r2),
+            Instr::Add(r0, r1, Source::Const(idx)) => writeln!(lines, "\tvaddps {}, {}, [rdi+32*{}]", r0, r1, idx),
+            Instr::Mul(r0, r1, Source::Reg(r2))    => writeln!(lines, "\tvmulps {}, {}, {}", r0, r1, r2),
+            Instr::Mul(r0, r1, Source::Const(idx)) => writeln!(lines, "\tvmulps {}, {}, [rdi+32*{}]", r0, r1, idx),
+        }.unwrap();
+    }
+
     let s_out = format!("={{{}}}", r_out);
     let s_in = asm.inputs.iter().map(|&(ref var, reg)| {
         let s = format!("{{{}}}", reg);
@@ -139,13 +148,71 @@ pub fn math_avx(input: String) -> Tokens {
     let out = quote! { unsafe {
             let out: f32x8;
             static CONSTANTS: [f32x8; #num_consts] = [ #( f32x8::splat(#s_consts) ),* ];
-            asm!{ #content : #s_out(out) : "{rdi}"(CONSTANTS.as_ptr()), #( #s_in ),* : : "intel" : #( #s_clobber ),* }
+            asm!{ #lines : #s_out(out) : "{rdi}"(CONSTANTS.as_ptr()), #( #s_in ),* : : "intel" : #( #s_clobber ),* }
             out
         }
     };
-    use std::fs::File;
-    use std::io::Write;
-    writeln!(File::create("/tmp/out").unwrap(), "{}", out).unwrap();
-    
+    {
+        use std::fs::File;
+        use std::io::Write;
+        writeln!(File::create("/tmp/out").unwrap(), "{}", out).unwrap();
+    }
     out
 }
+
+pub struct Code {
+    consts: Vec<f32x8>,
+    mmap: Mmap
+}
+impl Code {
+    pub fn call1(&self, v0: f32x8) -> f32x8 {
+        unsafe {
+            let r;
+            asm!{
+                "call rax"
+                    : "={ymm0}"(r)
+                    : "{ymm0}"(v0), "{rdi}"(self.consts.as_ptr()), "{rax}"(self.mmap.ptr())
+                    :
+                    : "intel"
+                    : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}"
+            };
+            r  
+        }
+    }
+}
+
+pub fn jit(node: NodeRc) -> Code {
+    use instr::x86_64::{Writer, Mode, op};
+
+    let mut asm = AvxAsm::new();
+    let r_out = match Compiler::run(&mut asm, &node) {
+        Source::Reg(r) => r,
+        Source::Const(_) => panic!("returned a const")
+    };
+    assert_eq!(r_out, Reg(0));
+
+
+    let mut writer = Writer::new();
+    for instr in asm.instr {
+        match instr {
+            Instr::Add(r0, r1, Source::Reg(r2)) => writer.vex(op::ADD, r0.0, r1.0, r2.0, Mode::Direct),
+            Instr::Add(r0, r1, Source::Const(idx)) => writer.vex(op::ADD, r0.0, r1.0, 7, Mode::Memory(idx as i32 * 32)),
+            Instr::Mul(r0, r1, Source::Reg(r2)) => writer.vex(op::MUL, r0.0, r1.0, r2.0, Mode::Direct),
+            Instr::Mul(r0, r1, Source::Const(idx)) => writer.vex(op::MUL, r0.0, r1.0, 7, Mode::Memory(idx as i32 * 32)),
+        }
+    }
+
+    let code = writer.finish();
+    let mut anon_mmap = Mmap::anonymous(4096, Protection::ReadWrite).unwrap();
+    unsafe {
+        anon_mmap.as_mut_slice()[.. code.len()].copy_from_slice(&code);
+    }
+    anon_mmap.set_protection(Protection::ReadExecute).unwrap();
+
+    Code {
+        mmap: anon_mmap,
+        consts: asm.consts.iter().map(|&c| f32x8::splat(c)).collect()
+    }
+}
+
+    

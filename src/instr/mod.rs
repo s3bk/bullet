@@ -1,13 +1,13 @@
 use std::collections::hash_map::{HashMap, Entry};
 use node::Node;
 
-pub struct Assembler<'a, V: Vm + 'a> {
+pub struct Compiler<'a, V: Vm + 'a> {
     uses: HashMap<&'a Node, usize>,
     storage: HashMap<&'a Node, V::Storage>,
     sources: HashMap<&'a str, V::Var>,
     vm: &'a mut V
 }
-impl<'a, V: Vm + 'a> Assembler<'a, V> {
+impl<'a, V: Vm + 'a> Compiler<'a, V> {
     fn visit(&mut self, node: &'a Node) -> Vec<&'a str> {
         let mut sources = vec![];
         let mut queue = vec![node];
@@ -32,7 +32,7 @@ impl<'a, V: Vm + 'a> Assembler<'a, V> {
     }
 
     pub fn run(vm: &'a mut V, root: &'a Node) -> V::Var {
-        Assembler {
+        Compiler {
             uses: HashMap::new(),
             storage: HashMap::new(),
             sources: HashMap::new(),
@@ -172,8 +172,6 @@ pub trait Vm {
 
 }
 
-mod avx_asm;
-pub use self::avx_asm::math_avx;
-
-mod syn;
-pub use self::syn::math_syn;
+pub mod avx;
+pub mod syn;
+pub mod x86_64;

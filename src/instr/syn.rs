@@ -1,5 +1,5 @@
 use builder::Builder;
-use instr::{Assembler, Vm};
+use instr::{Compiler, Vm};
 use quote::{Tokens, Ident};
 use std::mem;
 
@@ -54,12 +54,12 @@ impl Vm for Syn {
     }
 }
 
-pub fn math_syn(input: String) -> Tokens {
+pub fn syn(input: String) -> Tokens {
     let builder = Builder::new();
     let node = builder.parse(&input).expect("failed to parse");
 
     let mut syn = Syn::new();
-    let inner = Assembler::run(&mut syn, &node);
+    let inner = Compiler::run(&mut syn, &node);
     let store = syn.tokens;
     let out = quote! {
         {

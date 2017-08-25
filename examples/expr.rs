@@ -13,7 +13,9 @@ fn main() {
         match builder.parse(expr) {
             Ok(n) => {
                 println!(" -> {}", n);
-                println!(" d/dx -> {}", diff(&builder, &n, "x"));
+                if let Ok(d) = diff(&builder, &n, "x") {
+                    println!(" d/dx -> {}", d);
+                }
             },
             Err(_) => panic!("failed to parse {}", expr)
         }

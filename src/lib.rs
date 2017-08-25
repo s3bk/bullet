@@ -9,6 +9,7 @@
 #![feature(slice_patterns)]
 #![feature(box_patterns)]
 #![feature(proc_macro)]
+#![feature(asm)]
 
 extern crate syn;
 extern crate simd;
@@ -20,6 +21,7 @@ extern crate typenum;
 extern crate itertools;
 extern crate petgraph;
 extern crate lalrpop_util;
+extern crate memmap;
 
 #[macro_use] extern crate quote;
 

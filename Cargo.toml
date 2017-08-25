@@ -19,6 +19,7 @@ itertools = "*"
 quote = "*"
 petgraph = "*"
 syn = "*"
+memmap = "*"
 
 [build-dependencies]
 lalrpop = "*"
