@@ -12,12 +12,12 @@ pub Factor: NodeResult<'input> = {
     <l:Num> <r:Pow> => Ok(builder.mul(l?, r?)),
     <l:Factor> "*" <r:Pow> => Ok(builder.mul(l?, r?)),
     <l:Factor> "·" <r:Pow> => Ok(builder.mul(l?, r?)),
-    <l:Factor> "/" <r:Pow> => Ok(builder.div(l?, r?)),
+    <l:Factor> "/" <r:Pow> => builder.div(l?, r?),
     Pow,
 };
 
 pub Pow: NodeResult<'input> = {
-    <b:Term> "^" <e:Term> => Ok(builder.pow(b?, e?)),
+    <b:Term> "^" <e:Term> => builder.pow(b?, e?),
     <f:r"[[:alpha:]]+"> "(" <g:Expr> ")" => builder.function(f, g?),
     Term,
 };

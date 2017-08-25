@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use node::*;
 use func::Func;
 use rational::Rational;
-use poly::Poly;
+use poly::{Poly, PolyError};
 use lang::parse_Expr;
 use lalrpop_util;
 use cast::Cast;
@@ -12,6 +12,10 @@ pub enum Error<'a> {
     MissingFunction(&'a str),
     ParseError(lalrpop_util::ParseError<usize, (usize, &'a str), ()>),
     IntegerError,
+    Poly(PolyError)
+}
+impl<'a> From<PolyError> for Error<'a> {
+    fn from(e: PolyError) -> Error<'a> { Error::Poly(e) }
 }
 pub type NodeResult<'a> = Result<NodeRc, Error<'a>>;
 
@@ -25,7 +29,7 @@ fn poly(node: NodeRc) -> Poly {
     }
     Poly::from_node(node)
 }
-    
+
 impl Builder {
     pub fn new() -> Builder {
         Builder { cache: RefCell::new(Cache::new()) }
@@ -66,24 +70,24 @@ impl Builder {
     }
 
     /// a / b
-    pub fn div(&self, a: NodeRc, b: NodeRc) -> NodeRc {
-        self.poly(poly(a) * poly(b).pow_i(-1))
+    pub fn div(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
+        Ok(self.poly(poly(a) * poly(b).pow_i(self, -1)?))
     }
 
     /// a ^ b
-    pub fn pow(&self, a: NodeRc, b: NodeRc) -> NodeRc {
+    pub fn pow(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
         if let Node::Poly(ref p) = *b {
             if let Some(i) = p.as_int().and_then(|i| i.cast()) {          
-                return self.pow_i(a, i);
+                return Ok(self.pow_i(a, i)?);
             }
         }
 
         let g = self.func(Func::Log, b);
-        self.func(Func::Exp, g)
+        Ok(self.func(Func::Exp, g))
     }
     /// a ^ i
-    pub fn pow_i(&self, a: NodeRc, i: i32) -> NodeRc {
-        self.poly(poly(a).pow_i(i))
+    pub fn pow_i(&self, a: NodeRc, i: i32) -> NodeResult<'static> {
+        Ok(self.poly(poly(a).pow_i(self, i)?))
     }
 
     /// f(g)

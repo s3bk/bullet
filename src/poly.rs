@@ -7,6 +7,7 @@ use std::fmt::{self, Write};
 use std::cmp::{max, PartialEq, Eq, PartialOrd, Ord, Ordering};
 use std::hash::{Hash, Hasher};
 use itertools::Itertools;
+use builder::Builder;
 
 pub type Base = Vec<(NodeRc, i64)>;
 #[derive(Debug, Clone)]
@@ -15,6 +16,10 @@ pub struct Poly {
     elements: HashMap<Base, Rational>,
 }
 
+#[derive(Debug, Clone)]
+pub enum PolyError {
+    DivZero
+}
 fn add_to<'a>(e: Entry<'a, Base, Rational>, r: Rational) {
     match e {
         Entry::Vacant(v) => {
@@ -30,13 +35,18 @@ fn add_to<'a>(e: Entry<'a, Base, Rational>, r: Rational) {
 }
 
 impl Poly {
+    fn one(mut base: Base, fac: Rational) -> Poly {
+        base.sort();
+        Poly { elements: once((base, fac)).collect() }
+    }
+    pub fn zero() -> Poly {
+        Poly { elements: HashMap::new() }
+    }
     pub fn rational(r: Rational) -> Poly {
-        Poly {
-            elements: if r.is_zero() {
-                HashMap::new()
-            } else {
-                once((vec![], r)).collect()
-            }
+        if r.is_zero() {
+            Poly::zero()
+        } else {
+            Poly::one(vec![], r)
         }
     }
     pub fn int(i: i64) -> Poly {
@@ -47,23 +57,30 @@ impl Poly {
             return p.clone();
         }
                 
-        Poly {
-            elements: once((vec![(node, 1)], 1.into())).collect()
-        }
+        Poly::one(vec![(node, 1)], 1.into())
     }
-    pub fn pow_i(self, i: i32) -> Poly {
+    pub fn pow_i(self, builder: &Builder, i: i32) -> Result<Poly, PolyError> {
         if i == 0 {
-            return Poly::int(1);
+            return Ok(Poly::int(1));
         }
-        if i > 0 {
-            self.pow_n(i as u32)
-        } else {
-            if let Some(r) = self.as_rational() {
-                Poly::rational(Rational::from(1) / r)
+        if let Some(r) = self.as_rational() {
+            if r.is_zero() && i < 0 {
+                return Err(PolyError::DivZero);
             } else {
-                unimplemented!()
+                return Ok(Poly::rational(r.pow(i)));
             }
         }
+
+        if self.elements.len() == 1 {
+            let (base, fac) = self.elements.into_iter().next().unwrap();
+            let base = base.into_iter().map(|(v, n)| (v, n * i as i64)).collect();
+            let fac = fac.pow(i);
+            return Ok(Poly::one(base, fac));
+        }
+        if i > 0 && i < 4 {
+            return Ok(self.pow_n(i as u32));
+        }
+        Ok(Poly::one(vec![(builder.poly(self), i as i64)], 1.into()))
     }
     pub fn pow_n(mut self, mut n: u32) -> Poly {
         let mut p = Poly::int(1);
