@@ -39,6 +39,7 @@ pub mod op {
     use super::SimdPrefix::*;
     
     pub const ADD: Opcode = (None, P_0F, 0x58);
+    pub const SUB: Opcode = (S_66, P_0F, 0x5C);
     pub const MUL: Opcode = (None, P_0F, 0x59);
     pub const ROUND: Opcode = (S_66, P_0F_3A, 0x08);
 }

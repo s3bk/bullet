@@ -7,7 +7,7 @@ use simd::x86::avx::f32x8;
 
 fn main() {
     let b = Builder::new();
-    let n = b.parse("2x^2 - 5").unwrap();
+    let n = b.parse("sin(x)").unwrap();
     let c = jit(n);
     let r = c.call1(f32x8::splat(0.5));
     println!("{:?}", r);

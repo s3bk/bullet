@@ -133,9 +133,11 @@ pub trait Vm {
         let y2 = self.copy(&mut y);
         
         let k: Vec<_> = trig_poly::SIN_8_PI.iter().enumerate()
-            .map(|(i, &p)| p * (0.5 / pi).powi(2 * (8 - i as i32))) // adjust for the fact that we feed x/(2pi)
+            .map(|(i, &p)| p * (2.0 * pi).powi(2 * (8 - i as i32) - 1)) // adjust for the fact that we feed x/(2pi)
             .collect();
-        let p = self.poly(&k, y);
+        let y_square = self.pow_n(y, 2);
+        let p = self.poly(&k, y_square);
+        
         self.mul(p, y2)
     }
 }

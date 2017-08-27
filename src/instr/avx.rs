@@ -20,6 +20,7 @@ enum Source {
 }
 enum Instr {
     Add(Reg, Reg, Source),
+    Sub(Reg, Reg, Source),
     Mul(Reg, Reg, Source),
     Round(Reg, Source, Round),
 }
@@ -37,7 +38,7 @@ impl AvxAsm {
             used: 0,
             inputs: vec![],
             consts: vec![],
-            registers: [0; 16]
+            registers: [0; 16],
         }
     }
     fn alloc_uses(&mut self, uses: usize) -> Reg {
@@ -105,7 +106,18 @@ impl Vm for AvxAsm {
         self.inputs.push((name.into(), r));
         Source::Reg(r)
     }
-    
+    fn add(&mut self, a: Self::Var, b: Self::Var) -> Self::Var {
+        self.drop_s(a);
+        self.drop_s(b);
+        let c = self.alloc();
+        match (a, b) {
+            (Source::Reg(a), b) => self.push(Instr::Add(c, a, b)),
+            (a, Source::Reg(b)) => self.push(Instr::Add(c, b, a)),
+            _ => panic!("can't add two consts!")
+        }
+        Source::Reg(c)
+    }
+
     fn make_sum(&mut self, parts: Vec<Self::Var>) -> Self::Var {
         self.fold(parts, &|a, b, c| Instr::Add(a, b, c))
     }
@@ -152,6 +164,7 @@ pub fn asm(node: NodeRc) -> Tokens {
         use std::fmt::Write;
         match instr {
             Instr::Add(r0, r1, s)            => writeln!(lines, "\tvaddps {}, {}, {}", r0, r1, S(s)),
+            Instr::Sub(r0, r1, s)            => writeln!(lines, "\tvsubps {}, {}, {}", r0, r1, S(s)),
             Instr::Mul(r0, r1, s)            => writeln!(lines, "\tvmulps {}, {}, {}", r0, r1, S(s)),
             Instr::Round(r0, s, Round::Up)   => writeln!(lines, "\tvroundps {}, {}, 0x0A", r0, S(s)),
             Instr::Round(r0, s, Round::Down) => writeln!(lines, "\tvroundps {}, {}, 0x09", r0, S(s)),
@@ -183,6 +196,8 @@ pub fn asm(node: NodeRc) -> Tokens {
 
 pub struct Code {
     consts: Vec<f32x8>,
+pub instr_count: usize,
+pub code_size: usize,
     mmap: Mmap
 }
 impl Code {
@@ -198,6 +213,22 @@ impl Code {
                     : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}"
             };
             r  
+        }
+    }
+    pub fn bench(&self, v0: f32x8, n: usize) -> f32x8 {
+        unsafe {
+            let r;
+            asm! {"
+1:      call rax
+        loop 1b
+"
+                  : "={ymm0}"(r)
+                  : "{ymm0}"(v0), "{rdi}"(self.consts.as_ptr()), "{rax}"(self.mmap.ptr()), "{rcx}"(n)
+                  :
+                  : "intel"
+                  : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}"
+            };
+            r
         }
     }
 }
@@ -219,9 +250,10 @@ pub fn jit(node: NodeRc) -> Code {
     };
 
     let mut writer = Writer::new();
-    for instr in asm.instr {
-        match instr {
+    for instr in asm.instr.iter() {
+        match *instr {
             Instr::Add(r0, r1, s) => writer.vex(op::ADD, r0.0, r1.0, mode(s), None),
+            Instr::Sub(r0, r1, s) => writer.vex(op::SUB, r0.0, r1.0, mode(s), None),
             Instr::Mul(r0, r1, s) => writer.vex(op::MUL, r0.0, r1.0, mode(s), None),
             Instr::Round(r0, s, Round::Down) => writer.vex(op::ROUND, r0.0, 0, mode(s), Some(0x9)),
             Instr::Round(r0, s, Round::Up) => writer.vex(op::ROUND, r0.0, 0, mode(s), Some(0xA)),
@@ -237,7 +269,9 @@ pub fn jit(node: NodeRc) -> Code {
 
     Code {
         mmap: anon_mmap,
-        consts: asm.consts.iter().map(|&c| f32x8::splat(c)).collect()
+        consts: asm.consts.iter().map(|&c| f32x8::splat(c)).collect(),
+        instr_count: asm.instr.len(),
+        code_size: code.len()
     }
 }
 
