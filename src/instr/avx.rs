@@ -1,5 +1,6 @@
 use std::fmt;
 use instr::{Compiler, Vm};
+use instr::vm::Round;
 use node::NodeRc;
 use simd::x86::avx::f32x8;
 use quote::{Tokens, Ident};
@@ -12,13 +13,15 @@ impl fmt::Display for Reg {
 }
 #[derive(Copy, Clone, PartialEq, Debug)]
 struct Reg(u8);
+#[derive(Copy, Clone, PartialEq, Debug)]
 enum Source {
     Reg(Reg),
     Const(u16)
 }
 enum Instr {
     Add(Reg, Reg, Source),
-    Mul(Reg, Reg, Source)
+    Mul(Reg, Reg, Source),
+    Round(Reg, Source, Round),
 }
 struct AvxAsm {
     instr: Vec<Instr>,
@@ -51,7 +54,15 @@ impl AvxAsm {
     fn drop(&mut self, r: Reg) {
         self.registers[r.0 as usize] -= 1;
     }
-    
+    fn drop_s(&mut self, s: Source) {
+        match s {
+            Source::Reg(r) => self.drop(r),
+            Source::Const(_) => {}
+        }
+    }
+    fn push(&mut self, i: Instr) {
+        self.instr.push(i);
+    }
     fn fold(&mut self, parts: Vec<Source>, f: &Fn(Reg, Reg, Source) -> Instr) -> Source {
         // get a non-const source
         let (skip, mut r_last) = parts.iter().enumerate().filter_map(|(i, p)| {
@@ -63,13 +74,9 @@ impl AvxAsm {
                 
         for (_, part) in parts.into_iter().enumerate().filter(|&(i, _)| i != skip) {
             self.drop(r_last);
-            match part {
-                Source::Reg(r) => self.drop(r),
-                _ => {}
-            }
-
+            self.drop_s(part);
             let r_acc = self.alloc();
-            self.instr.push(f(r_acc, r_last, part));
+            self.push(f(r_acc, r_last, part));
 
             
             r_last = r_acc;
@@ -77,7 +84,6 @@ impl AvxAsm {
 
         Source::Reg(r_last)
     }
-
 }
 impl Vm for AvxAsm {
     type Var = Source;
@@ -118,6 +124,12 @@ impl Vm for AvxAsm {
     fn load(&mut self, storage: &Self::Storage) -> Self::Var {
         Source::Reg(*storage)
     }
+    fn round(&mut self, x: Self::Var, mode: Round) -> Self::Var {
+        self.drop_s(x);
+        let y = self.alloc();
+        self.push(Instr::Round(y, x, mode));
+        Source::Reg(y)
+    }
 }
 
 pub fn asm(node: NodeRc) -> Tokens { 
@@ -126,14 +138,23 @@ pub fn asm(node: NodeRc) -> Tokens {
         Source::Reg(r) => r,
         Source::Const(_) => panic!("returned a const")
     };
+    struct S(Source);
+    impl fmt::Display for S {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            match self.0 {
+                Source::Reg(r) => r.fmt(f),
+                Source::Const(idx) => write!(f, "[rdi+32*{}]", idx)
+            }
+        }
+    }
     let mut lines = String::new();
     for instr in asm.instr {
         use std::fmt::Write;
         match instr {
-            Instr::Add(r0, r1, Source::Reg(r2))    => writeln!(lines, "\tvaddps {}, {}, {}", r0, r1, r2),
-            Instr::Add(r0, r1, Source::Const(idx)) => writeln!(lines, "\tvaddps {}, {}, [rdi+32*{}]", r0, r1, idx),
-            Instr::Mul(r0, r1, Source::Reg(r2))    => writeln!(lines, "\tvmulps {}, {}, {}", r0, r1, r2),
-            Instr::Mul(r0, r1, Source::Const(idx)) => writeln!(lines, "\tvmulps {}, {}, [rdi+32*{}]", r0, r1, idx),
+            Instr::Add(r0, r1, s)            => writeln!(lines, "\tvaddps {}, {}, {}", r0, r1, S(s)),
+            Instr::Mul(r0, r1, s)            => writeln!(lines, "\tvmulps {}, {}, {}", r0, r1, S(s)),
+            Instr::Round(r0, s, Round::Up)   => writeln!(lines, "\tvroundps {}, {}, 0x0A", r0, S(s)),
+            Instr::Round(r0, s, Round::Down) => writeln!(lines, "\tvroundps {}, {}, 0x09", r0, S(s)),
         }.unwrap();
     }
 
@@ -183,6 +204,7 @@ impl Code {
 
 pub fn jit(node: NodeRc) -> Code {
     use instr::x86_64::{Writer, Mode, op};
+    use instr::x86_64::Reg::RDI;
 
     let mut asm = AvxAsm::new();
     let r_out = match Compiler::run(&mut asm, &node) {
@@ -191,14 +213,18 @@ pub fn jit(node: NodeRc) -> Code {
     };
     assert_eq!(r_out, Reg(0));
 
+    let mode = |s| match s {
+        Source::Reg(r) => Mode::Direct(r.0),
+        Source::Const(idx) => Mode::Memory(RDI, idx as i32 * 32)
+    };
 
     let mut writer = Writer::new();
     for instr in asm.instr {
         match instr {
-            Instr::Add(r0, r1, Source::Reg(r2)) => writer.vex(op::ADD, r0.0, r1.0, r2.0, Mode::Direct),
-            Instr::Add(r0, r1, Source::Const(idx)) => writer.vex(op::ADD, r0.0, r1.0, 7, Mode::Memory(idx as i32 * 32)),
-            Instr::Mul(r0, r1, Source::Reg(r2)) => writer.vex(op::MUL, r0.0, r1.0, r2.0, Mode::Direct),
-            Instr::Mul(r0, r1, Source::Const(idx)) => writer.vex(op::MUL, r0.0, r1.0, 7, Mode::Memory(idx as i32 * 32)),
+            Instr::Add(r0, r1, s) => writer.vex(op::ADD, r0.0, r1.0, mode(s), None),
+            Instr::Mul(r0, r1, s) => writer.vex(op::MUL, r0.0, r1.0, mode(s), None),
+            Instr::Round(r0, s, Round::Down) => writer.vex(op::ROUND, r0.0, 0, mode(s), Some(0x9)),
+            Instr::Round(r0, s, Round::Up) => writer.vex(op::ROUND, r0.0, 0, mode(s), Some(0xA)),
         }
     }
 

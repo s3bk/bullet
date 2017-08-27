@@ -1,5 +1,6 @@
 use std::collections::hash_map::{HashMap, Entry};
 use node::Node;
+use func::Func;
 
 pub struct Compiler<'a, V: Vm + 'a> {
     uses: HashMap<&'a Node, usize>,
@@ -102,7 +103,13 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                 }
             },
             Node::Var(ref name) => self.sources.remove(name.as_str()).expect("source was already used"),
-            _ => unimplemented!()
+            Node::Func(f, ref g) => {
+                let x = self.generate(g);
+                match f {
+                    Func::Sin => self.vm.sin(x),
+                    _ => unimplemented!()
+                }
+            }
         };
         match self.uses[node] {
             0 => unreachable!(),
@@ -115,63 +122,14 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
     }
 }
 
-pub trait Vm {
-    type Var;
-    type Storage;
-    
-    fn make_const(&mut self, f64) -> Self::Var;
-    fn make_source(&mut self, name: &str) -> Self::Var;
-    fn make_sum(&mut self, parts: Vec<Self::Var>) -> Self::Var;
-    fn make_product(&mut self, parts: Vec<Self::Var>) -> Self::Var;
-    fn store(&mut self, var: &mut Self::Var, uses: usize) -> Self::Storage;
-    fn load(&mut self, storage: &Self::Storage) -> Self::Var;
-    fn copy(&mut self, var: &mut Self::Var) -> Self::Var {
-        let s = self.store(var, 1);
-        self.load(&s)
-    }
-    fn mul(&mut self, a: Self::Var, b: Self::Var) -> Self::Var {
-        self.make_product(vec![a, b])
-    }
-    fn add(&mut self, a: Self::Var, b: Self::Var) -> Self::Var {
-        self.make_sum(vec![a, b])
-    }
 
-    fn make_int(&mut self, i: i64) -> Self::Var {
-        self.make_const(i as f64)
-    }
-    fn pow_n(&mut self, mut x: Self::Var, mut n: u32) -> Self::Var {
-        assert!(n > 0, "attempted to calculate x^0: this is a bug in the optimizer");
-
-        // handle trailing powers (replace x by x²ⁿ)
-        for _ in 0 .. n.trailing_zeros() {
-            let x2 = self.copy(&mut x);
-            x = self.mul(x, x2);
-            n /= 2;
-        }
-
-        // for powers of two, the computation is complete
-        if n == 1 {
-            return x;
-        }
-        
-        let mut y = self.copy(&mut x); // holds the power so far
-        while n > 1 {
-            if n & 1 == 1 {
-                let x2 = self.copy(&mut x);
-                y = self.mul(y, x2);
-            }
-
-            let x2 = self.copy(&mut x);
-            x = self.mul(x, x2);
-            n /= 2;
-        }
-
-        assert_eq!(n, 1);
-        self.mul(x, y) // final multiplication
-    }
-
-}
-
-pub mod avx;
+pub mod vm;
 pub mod syn;
+
+#[cfg(target_arch = "x86_64")]
 pub mod x86_64;
+
+#[cfg(target_feature = "avx")]
+pub mod avx;
+
+pub use self::vm::*;

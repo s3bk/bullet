@@ -16,7 +16,6 @@ extern crate simd;
 extern crate rand;
 extern crate tuple;
 extern crate optimization;
-extern crate fmath;
 extern crate typenum;
 extern crate itertools;
 extern crate petgraph;
@@ -38,6 +37,7 @@ pub mod eval;
 pub mod instr;
 pub mod poly;
 pub mod builder;
+mod consts;
 
 pub mod prelude {
     pub use integrate::*;

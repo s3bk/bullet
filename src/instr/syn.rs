@@ -1,5 +1,5 @@
 use builder::Builder;
-use instr::{Compiler, Vm};
+use instr::{Compiler, Vm, Round};
 use quote::{Tokens, Ident};
 use std::mem;
 
@@ -51,6 +51,12 @@ impl Vm for Syn {
     }
     fn load(&mut self, name: &Self::Storage) -> Self::Var {
         quote! { #name }
+    }
+    fn round(&mut self, x: Self::Var, mode: Round) -> Self::Var {
+        match mode {
+            Round::Up => quote! { #x.ceil() },
+            Round::Down => quote! { #x.floor() }
+        }
     }
 }
 
