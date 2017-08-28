@@ -127,6 +127,10 @@ impl Builder {
     pub fn rational(&self, r: Rational) -> NodeRc {
         self.poly(Poly::rational(r))
     }
+
+    pub fn tuple(&self, parts: Vec<NodeRc>) -> NodeRc {
+        self.intern(Node::Tuple(parts))
+    }
     
     pub fn intern(&self, node: Node) -> NodeRc {
         self.cache.borrow_mut().intern(node).clone()

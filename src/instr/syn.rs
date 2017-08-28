@@ -1,4 +1,3 @@
-use builder::Builder;
 use instr::{Compiler, Vm, Round};
 use node::NodeRc;
 use quote::{Tokens, Ident};

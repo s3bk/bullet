@@ -24,6 +24,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                         },
                         Node::Func(_, ref g) => queue.push(g),
                         Node::Var(ref name) => sources.push(name.as_str()),
+                        Node::Tuple(_) => unimplemented!()
                     }
                 },
                 Entry::Occupied(mut o) => *o.get_mut() += 1
@@ -109,7 +110,8 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                     Func::Sin => self.vm.sin(x),
                     _ => unimplemented!()
                 }
-            }
+            },
+            Node::Tuple(_) => unimplemented!()
         };
         match self.uses[node] {
             0 => unreachable!(),

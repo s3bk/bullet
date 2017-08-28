@@ -1,6 +1,7 @@
 use consts::trig_poly;
 use real::Real;
 
+#[derive(Debug)]
 pub enum Round {
     Up,
     Down
@@ -140,4 +141,22 @@ pub trait Vm {
         
         self.mul(p, y2)
     }
+
+    fn cos(&mut self, x: Self::Var) -> Self::Var {
+        let pi = f64::PI;
+        let two_pi_inv = self.make_const(0.5 / pi);
+        let one_half = self.make_const(0.5);
+        let y = self.mul_add(x, two_pi_inv, one_half); // y = x / (2 pi) + 1/2 | (2 pi y - pi) = x
+        let z = self.fraction(y); // cos(2 pi x) = cos(2 pi x + 2 pi n)
+
+        let minus_one_half = self.make_const(-0.5);
+        let mut y = self.add(z, minus_one_half);
+        
+        let k: Vec<_> = trig_poly::COS_8_PI.iter().enumerate()
+            .map(|(i, &p)| p * (2.0 * pi).powi(2 * (8 - i as i32) - 2)) // adjust for the fact that we feed x/(2pi)
+            .collect();
+        let y_square = self.pow_n(y, 2);
+        self.poly(&k, y_square)
+    }
+
 }

@@ -5,6 +5,7 @@ use std::collections::hash_map::{HashMap, DefaultHasher, Entry};
 use std::rc::Rc;
 use poly::Poly;
 use std::hash::{Hash, Hasher};
+use itertools::Itertools;
 
 pub struct Cache {
     items: HashMap<u64, NodeRc>
@@ -65,7 +66,8 @@ pub enum Sign {
 pub enum Node {
     Var(String),
     Func(Func, NodeRc),
-    Poly(Poly)
+    Poly(Poly),
+    Tuple(Vec<NodeRc>)
 }
 
 impl fmt::Display for Node {
@@ -73,7 +75,8 @@ impl fmt::Display for Node {
         match *self {
             Node::Func(f, ref g) => write!(w, "{}({})", f, g),
             Node::Var(ref s) => s.fmt(w),
-            Node::Poly(ref p) => p.fmt(w)
+            Node::Poly(ref p) => p.fmt(w),
+            Node::Tuple(ref parts) => write!(w, "({})", parts.iter().join(", "))
         }
     }
 }

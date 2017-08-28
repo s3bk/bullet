@@ -45,7 +45,8 @@ impl EvalContext {
                 Ok(sum)
             }
             Node::Func(f, ref g) => Ok(f.eval_f64(self.eval(g)?)),
-            Node::Var(ref s) => self.defines.get(s).cloned().ok_or(EvalError::UndefinedVar(s.clone()))
+            Node::Var(ref s) => self.defines.get(s).cloned().ok_or(EvalError::UndefinedVar(s.clone())),
+            Node::Tuple(_) => unimplemented!()
         }
     }
     

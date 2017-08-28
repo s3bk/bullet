@@ -24,7 +24,11 @@ pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc, DiffE
             )
         },
         Node::Var(ref s) => builder.int((s == var) as i64),
-        Node::Poly(ref p) => builder.poly(diff_poly(builder, p, var)?)
+        Node::Poly(ref p) => builder.poly(diff_poly(builder, p, var)?),
+        Node::Tuple(ref parts) => {
+            let parts: Result<Vec<_>, _> = parts.iter().map(|p| diff(builder, p, var)).collect();
+            builder.tuple(parts?)
+        }
     };
 
     Ok(out)

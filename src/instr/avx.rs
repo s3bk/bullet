@@ -18,6 +18,7 @@ enum Source {
     Reg(Reg),
     Const(u16)
 }
+#[derive(Debug)]
 enum Instr {
     Add(Reg, Reg, Source),
     Sub(Reg, Reg, Source),
@@ -62,6 +63,7 @@ impl AvxAsm {
         }
     }
     fn push(&mut self, i: Instr) {
+        println!("{:?}", self.registers);
         self.instr.push(i);
     }
     fn fold(&mut self, parts: Vec<Source>, f: &Fn(Reg, Reg, Source) -> Instr) -> Source {
