@@ -250,7 +250,7 @@ impl Code {
         unsafe {
             let r;
             asm! {"
-1:      vmovdqa ymm0 ymm15
+1:      vmovdqa ymm0, ymm15
         call rax
         loop 1b
 "
