@@ -53,4 +53,8 @@ impl EvalContext {
     pub fn set(&mut self, var: &str, val: f64) {
         self.defines.insert(var.into(), val);
     }
+
+    pub fn get(&self, var: &str) -> Option<f64> {
+        self.defines.get(var).cloned()
+    }
 }
