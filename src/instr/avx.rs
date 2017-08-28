@@ -250,11 +250,12 @@ impl Code {
         unsafe {
             let r;
             asm! {"
-1:      call rax
+1:      vmovdqa ymm0 ymm15
+        call rax
         loop 1b
 "
                   : "={ymm0}"(r)
-                  : "{ymm0}"(v0), "{rdi}"(self.consts.as_ptr()), "{rax}"(self.mmap.ptr()), "{rcx}"(n)
+                  : "{ymm15}"(v0), "{rdi}"(self.consts.as_ptr()), "{rax}"(self.mmap.ptr()), "{rcx}"(n)
                   :
                   : "intel"
                   : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}"
