@@ -42,10 +42,17 @@ impl Vm for Syn {
         quote! { #first #( .mul( #others ) )* }
     }
     fn store(&mut self, var: &mut Self::Var, _uses: usize) -> Self::Storage {
+        // `var` contains an expression.
+        // This expression needs to be assigned to a variable, so it can be used again later.
+
+        // make a new variable name
         let name = format!("storage_{}", self.stored).into();
         self.stored += 1;
 
+        // replace `var` by the variable name (load does that) and get ownership of the original expression
         let var = mem::replace(var, self.load(&name));
+
+        // now actually assign the expression to the variable (this is fine, as var can't be used until this function returns)
         self.tokens.append(quote! { let #name = #var; });
 
         name
