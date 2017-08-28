@@ -202,6 +202,7 @@ pub instr_count: usize,
 pub code_size: usize,
     mmap: Mmap
 }
+
 impl Code {
     pub fn call1(&self, v0: f32x8) -> f32x8 {
         unsafe {
@@ -212,7 +213,7 @@ impl Code {
                     : "{ymm0}"(v0), "{rdi}"(self.consts.as_ptr()), "{rax}"(self.mmap.ptr())
                     :
                     : "intel"
-                    : "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}"
+                    : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}"
             };
             r  
         }
@@ -226,7 +227,21 @@ impl Code {
                     : "{ymm0}"(v0), "{ymm1}"(v1), "{rdi}"(self.consts.as_ptr()), "{rax}"(self.mmap.ptr())
                     :
                     : "intel"
-                    : "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}"
+                    : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}"
+            };
+            r  
+        }
+    }
+    pub fn call3(&self, v0: f32x8, v1: f32x8, v2: f32x8) -> f32x8 {
+        unsafe {
+            let r;
+            asm!{
+                "call rax"
+                    : "={ymm0}"(r)
+                    : "{ymm0}"(v0), "{ymm1}"(v1), "{ymm2}"(v2), "{rdi}"(self.consts.as_ptr()), "{rax}"(self.mmap.ptr())
+                    :
+                    : "intel"
+                    : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}"
             };
             r  
         }
