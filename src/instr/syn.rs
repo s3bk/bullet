@@ -60,10 +60,7 @@ impl Vm for Syn {
     }
 }
 
-pub fn syn(input: String) -> Tokens {
-    let builder = Builder::new();
-    let node = builder.parse(&input).expect("failed to parse");
-
+pub fn syn(node: NodeRc) -> Tokens {
     let mut syn = Syn::new();
     let inner = Compiler::run(&mut syn, &node);
     let store = syn.tokens;
