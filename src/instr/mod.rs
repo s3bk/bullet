@@ -108,6 +108,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                 let x = self.generate(g);
                 match f {
                     Func::Sin => self.vm.sin(x),
+                    Func::Cos => self.vm.cos(x),
                     _ => unimplemented!()
                 }
             },

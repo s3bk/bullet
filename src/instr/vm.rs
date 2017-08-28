@@ -150,7 +150,7 @@ pub trait Vm {
         let z = self.fraction(y); // cos(2 pi x) = cos(2 pi x + 2 pi n)
 
         let minus_one_half = self.make_const(-0.5);
-        let mut y = self.add(z, minus_one_half);
+        let y = self.add(z, minus_one_half);
         
         let k: Vec<_> = trig_poly::COS_8_PI.iter().enumerate()
             .map(|(i, &p)| p * (2.0 * pi).powi(2 * (8 - i as i32) - 2)) // adjust for the fact that we feed x/(2pi)
