@@ -63,7 +63,6 @@ impl AvxAsm {
         }
     }
     fn push(&mut self, i: Instr) {
-        println!("{:?}", self.registers);
         self.instr.push(i);
     }
     fn fold(&mut self, parts: Vec<Source>, f: &Fn(Reg, Reg, Source) -> Instr) -> Source {

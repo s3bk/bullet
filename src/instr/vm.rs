@@ -123,22 +123,39 @@ pub trait Vm {
     }
 
     fn sin(&mut self, x: Self::Var) -> Self::Var {
+        // we need to fold x into [-PI, PI] in order to use the polynom approximation
+        // hardware rounding folds to [0; 1), so we have to scale by 1/(2pi) and shift by 1/2
+        
         let pi = f64::PI;
-        let two_pi_inv = self.make_const(0.5 / pi);
-        let one_half = self.make_const(0.5);
+        let two_pi_inv = self.make_const(0.5 / pi); // the scale factor
+        let one_half = self.make_const(0.5); // the shift
         let y = self.mul_add(x, two_pi_inv, one_half); // y = x / (2 pi) + 1/2 | (2 pi y - pi) = x
+
+        // now the folding to [0; 1)
         let z = self.fraction(y); // sin(2 pi x) = sin(2 pi x + 2 pi n)
 
         let minus_one_half = self.make_const(-0.5);
+
+        // get it back to [-0.5; 0.5)
         let mut y = self.add(z, minus_one_half);
         let y2 = self.copy(&mut y);
-        
+
+        // actually I lied earlier. we *could* now scale again by 2 pi and use the original polynom,
+        // but we can instead scale the constant terms of the polynom, and get the same result
+        // k[0] * x^15 + k[1] x^13 + k[2] x^11 + k[3] x^9 + k[4] x^7 + k[5] x^5 + k[6] x^3 + k[7] * x^1
+        // in short sum_i=k[i] x^(15-2i)
+        // so k[i] needs to be multiplied by (2 pi)^(15-2i)
         let k: Vec<_> = trig_poly::SIN_8_PI.iter().enumerate()
-            .map(|(i, &p)| p * (2.0 * pi).powi(2 * (8 - i as i32) - 1)) // adjust for the fact that we feed x/(2pi)
+            .map(|(i, &p)| p * (2.0 * pi).powi(15 - 2 * i as i32)) // adjust for the fact that we feed x/(2pi)
             .collect();
-        let y_square = self.pow_n(y, 2);
+
+        // use x^2 instead of x ..
+        let y_square = self.pow_n(y, 2); 
+        // .. because this function computes sum_{i=0}^n k[i] x^{n-i}
         let p = self.poly(&k, y_square);
-        
+        // we now have k[0] x^14 + k[1] x^12 + ... + k[7] x^0
+
+        // add the final power of x
         self.mul(p, y2)
     }
 
