@@ -190,7 +190,7 @@ pub fn asm(node: NodeRc) -> Tokens {
     {
         use std::fs::File;
         use std::io::Write;
-        writeln!(File::create("/tmp/out").unwrap(), "{}", out).unwrap();
+        writeln!(File::create("/tmp/out.asm").unwrap(), "{}", out).unwrap();
     }
     out
 }
@@ -292,6 +292,13 @@ pub fn jit(node: NodeRc) -> Code {
     }
 
     let code = writer.finish();
+
+    {
+        use std::fs::File;
+        use std::io::Write;
+        File::create("/tmp/out").unwrap().write_all(&code).unwrap();
+    }
+
     let mut anon_mmap = Mmap::anonymous(4096, Protection::ReadWrite).unwrap();
     unsafe {
         anon_mmap.as_mut_slice()[.. code.len()].copy_from_slice(&code);
