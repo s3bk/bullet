@@ -10,6 +10,8 @@
 #![feature(box_patterns)]
 #![feature(proc_macro)]
 #![feature(asm)]
+#![feature(plugin)]
+#![plugin(dynasm)]
 
 extern crate syn;
 extern crate simd;
@@ -24,6 +26,8 @@ extern crate memmap;
 
 #[macro_use] extern crate quote;
 
+extern crate dynasmrt;
+
 pub mod integrate;
 pub mod real;
 //pub mod expr;
@@ -34,7 +38,7 @@ pub mod node;
 pub mod func;
 pub mod rational;
 pub mod eval;
-pub mod instr;
+pub mod compiler;
 pub mod poly;
 pub mod builder;
 mod consts;
@@ -45,3 +49,6 @@ pub mod prelude {
     pub use tuple::*;
     pub use cast::*;
 }
+
+pub mod vm;
+#[cfg(target_feature = "avx")] pub mod avx;

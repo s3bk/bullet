@@ -1,6 +1,8 @@
 use std::collections::hash_map::{HashMap, Entry};
-use node::Node;
+use node::{NodeRc, Node};
 use func::Func;
+use tuple::{TupleElements, Map};
+use vm::Vm;
 
 pub struct Compiler<'a, V: Vm + 'a> {
     uses: HashMap<&'a Node, usize>,
@@ -10,7 +12,7 @@ pub struct Compiler<'a, V: Vm + 'a> {
 }
 impl<'a, V: Vm + 'a> Compiler<'a, V> {
     fn visit(&mut self, node: &'a Node) -> Vec<&'a str> {
-        let mut sources = vec![];
+        let mut vars = vec![];
         let mut queue = vec![node];
         while let Some(node) = queue.pop() {
             match self.uses.entry(node) {
@@ -23,38 +25,56 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                             }
                         },
                         Node::Func(_, ref g) => queue.push(g),
-                        Node::Var(ref name) => sources.push(name.as_str()),
+                        Node::Var(ref name) => vars.push(name.as_str()),
                         Node::Tuple(_) => unimplemented!()
                     }
                 },
                 Entry::Occupied(mut o) => *o.get_mut() += 1
             }
         }
-        sources
+        vars
     }
 
-    pub fn run(vm: &'a mut V, root: &'a Node) -> V::Var {
+    pub fn new(vm: &'a mut V) -> Compiler<'a, V> {
         Compiler {
             uses: HashMap::new(),
             storage: HashMap::new(),
             sources: HashMap::new(),
             vm: vm
-        }.assemble(root)
+        }
+    }
+
+    pub fn run(vm: &'a mut V, root: &'a Node) -> V::Var {
+        let mut comp = Compiler::new(vm);
+        let mut vars = comp.visit(root);
+        vars.sort();
+
+        for name in vars {
+            let var = comp.vm.make_source(name);
+            comp.sources.insert(name, var);
+        }
+
+        comp.generate(root)
     }
     
-    fn assemble(mut self, root: &'a Node) -> V::Var {
+    pub fn compile<'v, T, U>(vm: &'v mut V, nodes: T, vars: U) -> <T as Map<V::Var>>::Output
+        where T: TupleElements<Element=&'a NodeRc> + Map<V::Var>, U: TupleElements<Element=&'a str>,
+              T: 
+    {
+        let mut comp = Compiler::new(vm);
+        
         // walk all nodes
-        let mut sources = self.visit(root);
-        sources.sort();
-
-        for name in sources {
-            let var = self.vm.make_source(name);
-            self.sources.insert(name, var);
+        for n in nodes.elements() {
+            comp.visit(&**n);
+        }
+        
+        for name in vars.into_elements() {
+            let var = comp.vm.make_source(name);
+            comp.sources.insert(name, var);
         }
 
         // build it
-        self.generate(root)
-
+        nodes.map_mut(|n| comp.generate(&**n))
     }
         
     fn generate(&mut self, node: &'a Node) -> V::Var {
@@ -77,9 +97,9 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                     let base = match base.len() {
                         0 => None,
                         _ => {
-                            let prod = base.iter().map(|vn| {
-                                let v = self.generate(&*vn.0);
-                                match vn.1 {
+                            let prod = base.iter().map(|&(ref v, n)| {
+                                let v = self.generate(v);
+                                match n {
                                     0 => panic!("power of 0"),
                                     1 => v,
                                     i if i > 0 => self.vm.pow_n(v, i as u32),
@@ -124,15 +144,3 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
         var
     }
 }
-
-
-pub mod vm;
-pub mod syn;
-
-#[cfg(target_arch = "x86_64")]
-pub mod x86_64;
-
-#[cfg(target_feature = "avx")]
-pub mod avx;
-
-pub use self::vm::*;

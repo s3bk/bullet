@@ -6,7 +6,7 @@ build = "build.rs"
 
 [dependencies]
 rand = "*"
-tuple = { features = ["impl_simd"], git="https://github.com/s3bk/tuple.git" }
+tuple = { version = "0.3", features = ["impl_simd"], git="https://github.com/s3bk/tuple.git" }
 num = "*"
 simd = "*"
 lalrpop-util = "*"
@@ -19,6 +19,8 @@ quote = "*"
 petgraph = "*"
 syn = "*"
 memmap = "*"
+dynasmrt = "*"
+dynasm = "*"
 
 [build-dependencies]
 lalrpop = "*"
