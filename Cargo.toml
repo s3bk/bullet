@@ -19,8 +19,6 @@ quote = "*"
 petgraph = "*"
 syn = "*"
 memmap = "*"
-dynasmrt = "*"
-dynasm = "*"
 
 [build-dependencies]
 lalrpop = "*"

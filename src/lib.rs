@@ -10,8 +10,6 @@
 #![feature(box_patterns)]
 #![feature(proc_macro)]
 #![feature(asm)]
-#![feature(plugin)]
-#![plugin(dynasm)]
 
 extern crate syn;
 extern crate simd;
@@ -26,7 +24,6 @@ extern crate memmap;
 
 #[macro_use] extern crate quote;
 
-extern crate dynasmrt;
 
 pub mod integrate;
 pub mod real;
