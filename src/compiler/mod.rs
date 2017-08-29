@@ -57,7 +57,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
         comp.generate(root)
     }
     
-    pub fn compile<'v, T, U>(vm: &'v mut V, nodes: T, vars: U) -> <T as Map<V::Var>>::Output
+    pub fn compile<T, U>(vm: &mut V, nodes: T, vars: U) -> <T as Map<V::Var>>::Output
         where T: TupleElements<Element=&'a NodeRc> + Map<V::Var>, U: TupleElements<Element=&'a str>,
               T: 
     {
@@ -73,6 +73,9 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
             comp.sources.insert(name, var);
         }
 
+        for (n, u) in comp.uses.iter() {
+            println!("{}: {}", u, n);
+        }
         // build it
         nodes.map_mut(|n| comp.generate(&**n))
     }
@@ -80,7 +83,8 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
     fn generate(&mut self, node: &'a Node) -> V::Var {
         if let Some(stored) = self.storage.get(node) {
             return self.vm.load(stored); // already computed
-        } 
+        }
+        println!("{}", node);
         let mut var = match *node {
             Node::Poly(ref poly) => {
                 if let Some(i) = poly.as_int() {
@@ -133,12 +137,14 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                 }
             },
             Node::Tuple(_) => unimplemented!()
+
         };
+        println!("{} uses for {} (stored in {:?})", self.uses[node], node, var);
         match self.uses[node] {
             0 => unreachable!(),
             1 => {},
             n => {
-                self.storage.insert(node, self.vm.store(&mut var, n));
+                self.storage.insert(node, self.vm.store(&mut var, n-1));
             }
         }
         var

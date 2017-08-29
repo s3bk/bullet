@@ -81,6 +81,7 @@ impl AvxAsm {
         }
     }
     fn push(&mut self, i: Instr) {
+        println!("{:40} {:?}", format!("{:?}", i), self.registers);
         self.instr.push(i);
     }
     fn fold(&mut self, mut parts: Vec<Source>, f: &Fn(Reg, Reg, Source) -> Instr) -> Source {
@@ -112,7 +113,7 @@ impl AvxAsm {
 }
 impl Vm for AvxAsm {
     type Var = Source;
-    type Storage = Reg;
+    type Storage = Source;
     
     fn make_const(&mut self, c: f64) -> Self::Var {
         let c = c as f32;
@@ -138,20 +139,13 @@ impl Vm for AvxAsm {
         self.fold(parts, &|a, b, c| Instr::Mul(a, b, c))
     }
     fn store(&mut self, var: &mut Self::Var, uses: usize) -> Self::Storage {
-        match *var {
-            Source::Reg(r) => {
-                self.registers[r.0 as usize] += uses;
-                r
-            },
-            s => {
-                let r = self.alloc();
-                self.push(Instr::Load(r, s));
-                r
-            }
+        if let Source::Reg(r) = *var {
+            self.registers[r.0 as usize] += uses;
         }
+        *var
     }
     fn load(&mut self, storage: &Self::Storage) -> Self::Var {
-        Source::Reg(*storage)
+        *storage
     }
     fn round(&mut self, x: Self::Var, mode: Round) -> Self::Var {
         self.drop_s(x);

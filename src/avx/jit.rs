@@ -72,7 +72,7 @@ pub fn avx_jit<'a, F, V, R>(nodes: F, vars: V) -> Code<<R as Map<f32x8>>::Output
             Instr::Load(r0, s) => writer.vex(op::READ, r0.0, 0, mode(s), None),
         }
     }
-    
+    println!("{:?}", asm.registers);
     let code = writer.finish();
     
     {

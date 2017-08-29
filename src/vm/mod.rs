@@ -1,5 +1,6 @@
 use consts::trig_poly;
 use real::Real;
+use std::fmt::Debug;
 
 #[derive(Debug)]
 pub enum Round {
@@ -8,8 +9,9 @@ pub enum Round {
 }
 
 pub trait Vm {
-    type Var;
-    type Storage;
+    #[must_use]
+    type Var: Debug;
+    type Storage: Debug;
 
     // functions that need to be implemented
     fn make_const(&mut self, f64) -> Self::Var;
