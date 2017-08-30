@@ -2,7 +2,7 @@ extern crate math;
 use math::builder::Builder;
 
 #[test]
-fn text_expr() {
+fn expr() {
     let exprs = [
         "1 + 2", "2 x", "sin(x)", "sin(2x)", "sin(x * y)", "sin(2 x * y)", "x^y", "2 x ^ y",
         "sin(x) * log(y)",

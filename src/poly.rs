@@ -34,10 +34,16 @@ fn add_to<'a>(e: Entry<'a, Base, Rational>, r: Rational) {
     }
 }
 
+fn base<I>(bv: I) -> Base where I: IntoIterator<Item=(NodeRc, i64)>
+{
+    let mut base: Vec<_> = bv.into_iter().filter(|&(_, n)| n != 0).collect();
+    base.sort();
+    base
+}
+
 impl Poly {
-    fn one(mut base: Base, fac: Rational) -> Poly {
-        base.sort();
-        Poly { elements: once((base, fac)).collect() }
+    fn one(bv: Base, fac: Rational) -> Poly {
+        Poly { elements: once((base(bv), fac)).collect() }
     }
     pub fn zero() -> Poly {
         Poly { elements: HashMap::new() }
@@ -116,7 +122,7 @@ impl Poly {
     pub fn split(&self) -> Vec<Poly> {
         let mut out = Vec::with_capacity(self.elements.len());
         for (base, &fac) in self.elements.iter() {
-            out.push(Poly { elements: once((base.clone(), fac)).collect() });
+            out.push(Poly::one(base.clone(), fac));
         }
         out
     }
@@ -125,22 +131,30 @@ impl Poly {
         if self.elements.len() < 2 { return None; }
 
         let mut factors = self.factors();
-        let mut common: HashMap<NodeRc, i64> = factors.next().unwrap().0.iter().cloned().collect();
+        let mut common: Base = factors.next().unwrap().0.clone();
         
-        for (ref base, _) in factors {
-            for &(ref v, n) in base.iter() {
-                match common.get_mut(&v) {
-                    Some(m) => *m = min(*m, n),
-                    None => return None // no common base
+        for (ref bv, _) in factors {
+            for &mut (ref v, ref mut n) in common.iter_mut() {
+                if let Some(&(_, m)) = bv.iter().find(|&&(ref w, _)| w == v) {
+                    *n = min(m, *n);
+                } else {
+                    *n = 0;
                 }
             }
+            common.retain(|&(_, n)| n != 0);
         }
 
         // common now contains the common factor
-        let elements = self.factors().map(|(base, &rat)| {
-            let mut base: Base = base.iter().map(|&(ref v, n)| (v.clone(), n - common[&v])).collect();
-            base.sort();
-            (base, rat)
+        let elements = self.factors().map(|(bv, &rat)| {
+            (
+                base(bv.iter().map(|&(ref v, n)| {
+                    match common.iter().find(|&&(ref w, _)| w == v) {
+                        Some(&(_, m)) => (v.clone(), n - m),
+                        None => (v.clone(), n)
+                    }
+                })),
+                rat
+            )
         }).collect();
         
         let poly = Poly { elements };
