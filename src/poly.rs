@@ -285,10 +285,10 @@ impl fmt::Display for Poly {
                 }
             }
         }
-        if self.elements.len() > 1 {
-            write!(f, "({})", tokens.content)
-        } else {
-            write!(f, "{}", tokens.content)
+        match self.elements.len() {
+            0 => write!(f, "0"),
+            1 => write!(f, "{}", tokens.content),
+            _ => write!(f, "({})", tokens.content)
         }
     }
 }
