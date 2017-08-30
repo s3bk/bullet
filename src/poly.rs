@@ -3,9 +3,9 @@ use rational::Rational;
 use std::iter::once;
 use std::collections::hash_map::{HashMap, Entry, Iter};
 use std::ops::{Add, Mul, MulAssign};
-use std::fmt::{self, Write};
 use std::cmp::{max, PartialEq, Eq, PartialOrd, Ord, Ordering};
 use std::hash::{Hash, Hasher};
+use std::fmt;
 use itertools::Itertools;
 use builder::Builder;
 
@@ -186,21 +186,6 @@ impl PartialEq for Poly {
 }
 impl Eq for Poly {}
 
-struct Tokens {
-    content: String
-}
-impl Tokens {
-    fn new() -> Tokens {
-        Tokens { content: String::new() }
-    }
-    fn push<T: fmt::Display>(&mut self, t: T) -> fmt::Result {
-        if self.content.len() > 0 {
-            write!(self.content, " ")?;
-        }
-        write!(self.content, "{}", t)
-    }
-}
-
 impl PartialOrd for Poly {
     fn partial_cmp(&self, rhs: &Poly) -> Option<Ordering> {
         Some(cmp_poly(self, rhs))
@@ -251,47 +236,6 @@ fn cmp_base(a: &[(NodeRc, i64)], b: &[(NodeRc, i64)]) -> Ordering {
     Ordering::Equal
 }
 
-impl fmt::Display for Poly {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut tokens = Tokens::new();
-        let mut elements: Vec<_> = self.elements.iter().collect();
-        elements.sort_by(|a, b| cmp_base(a.0, b.0));
-
-        for (n, &(base, fac)) in elements.iter().enumerate() {
-            let (nom, denom) = fac.frac();
-
-            if nom < 0 {
-                tokens.push("-")?;
-            } else if n != 0 {
-                tokens.push("+")?;
-            }
-            if nom.abs() != 1 || base.len() == 0 {
-                tokens.push(nom.abs())?;
-            }
-
-            for &(ref v, n) in base.iter() {
-                if n == 1 {
-                    tokens.push(v)?;
-                } else {
-                    tokens.push(format!("{}{}", v, int_super(n)))?;
-                }
-            }
-
-            match denom {
-                1 => {},
-                d => {
-                    tokens.push("/")?;
-                    tokens.push(d)?;
-                }
-            }
-        }
-        match self.elements.len() {
-            0 => write!(f, "0"),
-            1 => write!(f, "{}", tokens.content),
-            _ => write!(f, "({})", tokens.content)
-        }
-    }
-}
 impl Hash for Poly {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for f in self.factors() {
@@ -300,21 +244,11 @@ impl Hash for Poly {
     }
 }
 
-fn int_super(i: i64) -> String {
-    i.to_string().chars().map(|c| {
-        match c {
-            '-' => '⁻',
-            '0' => '⁰',
-            '1' => '¹',
-            '2' => '²',
-            '3' => '³',
-            '4' => '⁴',
-            '5' => '⁵',
-            '6' => '⁶',
-            '7' => '⁷',
-            '8' => '⁸',
-            '9' => '⁹',
-            _ => unreachable!()
-        }
-    }).collect()
+impl fmt::Display for Poly {
+    fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
+        use display::Tokens;
+        let mut t = Tokens::new();
+        t.poly(self);
+        t.fmt(w)
+    }
 }

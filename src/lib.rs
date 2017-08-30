@@ -39,6 +39,7 @@ pub mod compiler;
 pub mod poly;
 pub mod builder;
 mod consts;
+mod display;
 
 pub mod prelude {
     pub use integrate::*;

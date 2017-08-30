@@ -12,7 +12,7 @@ fn text_expr() {
     let b = Builder::new();
     for expr in &exprs {
         match b.parse(expr) {
-            Ok(n) => println!("{}", n),
+            Ok(n) => println!("{} -> {}", expr, n),
             Err(e) => panic!("failed to parse {}: {}", expr, e)
         }
     }
