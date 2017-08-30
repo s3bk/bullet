@@ -116,7 +116,7 @@ impl Writer {
         
 #[test]
 fn test_opcodes() {
-    use instr::x86_64::Reg::*;
+    use self::Reg::*;
     
     let mut w = Writer::new();
     w.vex(op::ADD, 0,  0, Mode::Direct(0), None);

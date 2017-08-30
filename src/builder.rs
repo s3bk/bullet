@@ -71,7 +71,7 @@ impl Builder {
 
     /// a / b
     pub fn div(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
-        Ok(self.poly(poly(a) * poly(b).pow_i(self, -1)?))
+        Ok(self.poly(poly(a) * (poly(b).pow_i(self, -1)?)))
     }
 
     /// a ^ b

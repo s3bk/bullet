@@ -160,29 +160,16 @@ pub fn avx_asm<'a, N, V>(nodes: N, vars: V) -> Tokens
           V: TupleElements<Element=&'a str>
 { 
     let mut asm = AvxAsm::new();
-    let out = Compiler::compile(&mut asm, nodes, vars);
-
-    let mut lines = String::new();
-    for instr in asm.instr {
-        use std::fmt::Write;
-        match instr {
-            Instr::Add(r0, r1, s)            => writeln!(lines, "\tvaddps {}, {}, {}", r0, r1, s),
-            Instr::Sub(r0, r1, s)            => writeln!(lines, "\tvsubps {}, {}, {}", r0, r1, s),
-            Instr::Mul(r0, r1, s)            => writeln!(lines, "\tvmulps {}, {}, {}", r0, r1, s),
-            Instr::Round(r0, s, Round::Up)   => writeln!(lines, "\tvroundps {}, {}, 0x0A", r0, s),
-            Instr::Round(r0, s, Round::Down) => writeln!(lines, "\tvroundps {}, {}, 0x09", r0, s),
-            Instr::Load(r0, s)               => writeln!(lines, "\tvmovdqa {}, {}", r0, s),
-        }.unwrap();
-    }
     let num_inputs = asm.inputs.len();
     let num_consts = asm.consts.len();
-    let s_inputs = asm.inputs;
+
     let mut def_out = vec![]; // defines
     let mut reg_out = vec![]; // registers
-    let mut vars = vec![]; // the names
-    for (i, src) in out.into_elements().enumerate() {
-        let v: Ident = format!("out_{}", i).into();
-        def_out.push(match src {
+    let mut args = vec![]; // the names
+
+    Compiler::compile(&mut asm, nodes, vars, |_, r| {
+        let v: Ident = format!("out_{}", args.len()).into();
+        def_out.push(match r {
             Source::Reg(r) => {
                 let reg = format!("={{{}}}", r);
                 reg_out.push(quote!{ #reg(#v) });
@@ -197,8 +184,23 @@ pub fn avx_asm<'a, N, V>(nodes: N, vars: V) -> Tokens
                 quote!{ let #v: f32x8 = CONSTANTS[#n]; }
             }
         });
-        vars.push(v);
+        args.push(v);
+    });
+
+    let mut lines = String::new();
+    for instr in asm.instr {
+        use std::fmt::Write;
+        match instr {
+            Instr::Add(r0, r1, s)            => writeln!(lines, "\tvaddps {}, {}, {}", r0, r1, s),
+            Instr::Sub(r0, r1, s)            => writeln!(lines, "\tvsubps {}, {}, {}", r0, r1, s),
+            Instr::Mul(r0, r1, s)            => writeln!(lines, "\tvmulps {}, {}, {}", r0, r1, s),
+            Instr::Round(r0, s, Round::Up)   => writeln!(lines, "\tvroundps {}, {}, 0x0A", r0, s),
+            Instr::Round(r0, s, Round::Down) => writeln!(lines, "\tvroundps {}, {}, 0x09", r0, s),
+            Instr::Load(r0, s)               => writeln!(lines, "\tvmovdqa {}, {}", r0, s),
+        }.unwrap();
     }
+    
+    let s_inputs = asm.inputs;
     let s_consts = asm.consts.iter().map(|c| quote! { #c });
     let s_clobber = (0 .. asm.used).map(|r| format!("{{{}}}", r));
 
@@ -207,7 +209,7 @@ pub fn avx_asm<'a, N, V>(nodes: N, vars: V) -> Tokens
         static CONSTANTS: [f32x8; #num_consts] = [ #( f32x8::splat(#s_consts) ),* ];
         #( #def_out )*
         asm!{ #lines : #reg_out(out) : "{rdi}"(CONSTANTS.as_ptr()), "{rdx}"(inputs.as_ptr()) : : "intel" : #( #s_clobber ),* }
-        ( #( #vars ),* )
+        ( #( #args ),* )
     } };
     {
         use std::fs::File;

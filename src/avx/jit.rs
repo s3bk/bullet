@@ -58,8 +58,22 @@ pub fn avx_jit<'a, F, V, R>(nodes: F, vars: V) -> Code<<R as Map<f32x8>>::Output
           F: TupleElements<Element=&'a NodeRc> + Map<Source, Output=R>
 {
     let mut asm = AvxAsm::new();
-    let r = Compiler::compile(&mut asm, nodes, vars);
-    println!("{:?}", r);
+    let mut num_results = 0;
+    Compiler::compile(&mut asm, nodes, vars, |asm, r| {
+        // this runs for every result
+        match r {
+            Source::Reg(r) => assert_eq!(r.0 as usize, num_results), // simple sanity check
+            s => {
+                let r = asm.alloc();
+                assert_eq!(r.0 as usize, num_results);
+                asm.push(Instr::Load(r, s)); // write the source to the output register
+            }
+        }
+        num_results += 1;
+    });
+    assert_eq!(num_results, F::N);
+
+    // constant expressions will not allocate registers
 
     let mut writer = Writer::new();
     for instr in asm.instr.iter() {

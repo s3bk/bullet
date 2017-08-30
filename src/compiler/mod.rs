@@ -56,10 +56,11 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
 
         comp.generate(root)
     }
-    
-    pub fn compile<T, U>(vm: &mut V, nodes: T, vars: U) -> <T as Map<V::Var>>::Output
+
+    /// f is called for every node
+    pub fn compile<T, U, F>(vm: &mut V, nodes: T, vars: U, mut f: F)
         where T: TupleElements<Element=&'a NodeRc> + Map<V::Var>, U: TupleElements<Element=&'a str>,
-              T: 
+              F: FnMut(&mut V, V::Var)
     {
         let mut comp = Compiler::new(vm);
         
@@ -77,9 +78,12 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
             println!("{}: {}", u, n);
         }
         // build it
-        nodes.map_mut(|n| comp.generate(&**n))
+        for n in nodes.into_elements() {
+            let var = comp.generate(&**n);
+            f(&mut comp.vm, var);
+        }
     }
-        
+    
     fn generate(&mut self, node: &'a Node) -> V::Var {
         if let Some(stored) = self.storage.get(node) {
             return self.vm.load(stored); // already computed

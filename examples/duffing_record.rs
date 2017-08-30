@@ -7,7 +7,7 @@ extern crate tuple;
 extern crate math;
 extern crate hound;
 
-use tuple::{T2, TupleElements};
+use tuple::{T2, TupleElements, Map};
 use math::integrate::Integration;
 use math::real::Real;
 use math::cast::Cast;
