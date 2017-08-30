@@ -12,3 +12,4 @@ Write the following into `math/.cargo/config` to enable it just here:
 [build]
 rustflags = "-C target-cpu=native"
 ```
+(It also works without avx, but then the JIT insn't avaible.)
