@@ -6,6 +6,7 @@ use poly::{Poly, PolyError};
 use lang::parse_Expr;
 use lalrpop_util;
 use cast::Cast;
+use std::fmt;
 
 #[derive(Debug)]
 pub enum Error<'a> {
@@ -13,6 +14,20 @@ pub enum Error<'a> {
     ParseError(lalrpop_util::ParseError<usize, (usize, &'a str), ()>),
     IntegerError,
     Poly(PolyError)
+}
+impl<'a> fmt::Display for Error<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Error::*;
+        use lalrpop_util::ParseError::UnrecognizedToken;
+        match *self {
+            MissingFunction(s) => write!(f, "the function '{}' is not implemented", s),
+            ParseError(UnrecognizedToken { token: Some((_start, (_, t), _end)), ref expected }) => 
+                write!(f, "the character '{}' was not on of the expected ({})", t, expected.join(", ")),
+            ParseError(ref e) => write!(f, "{:?}", e),
+            IntegerError => write!(f, "not an integer"),
+            Poly(PolyError::DivZero) => write!(f, "division by zero")
+        }       
+    }
 }
 impl<'a> From<PolyError> for Error<'a> {
     fn from(e: PolyError) -> Error<'a> { Error::Poly(e) }
