@@ -37,6 +37,26 @@ macro_rules! impl_call {
                 } }
                 ( $($name,)* )
             }
+            #[inline(always)]
+            pub fn bench(&self, v: &[f32x8], n: usize) -> ($(A!(f32x8, $name),)*) {
+                assert_eq!(v.len(), self.num_vars);
+                $( let $name; )*
+                unsafe { asm!{ "
+1:  call rax
+    loop 1b
+"
+                  : $( $reg ($name) ),*
+                  : "{rdi}"(self.consts.as_ptr()),
+                    "{rdx}"(v.as_ptr()),
+                    "{rax}"(self.code.ptr()),
+                    "{rcx}"(n)
+                  :
+                  : "intel"
+                  : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}",
+                    "{ymm8}", "{ymm9}", "{ymm10}", "{ymm11}", "{ymm12}", "{ymm13}", "{ymm14}", "{ymm15}"
+                } }
+                ( $($name,)* )
+            }
         }
     )
 }
