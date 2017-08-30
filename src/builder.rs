@@ -82,8 +82,8 @@ impl Builder {
             }
         }
 
-        let g = self.func(Func::Log, b);
-        Ok(self.func(Func::Exp, g))
+        let g = self.func(Func::Log, a);
+        Ok(self.func(Func::Exp, self.mul(g, b)))
     }
     /// a ^ i
     pub fn pow_i(&self, a: NodeRc, i: i32) -> NodeResult<'static> {

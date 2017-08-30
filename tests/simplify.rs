@@ -5,7 +5,8 @@ use math::builder::Builder;
 fn text_simplify() {
     let pairs = [
         ("1 + 2", "3"),
-        ("a / a", "1")
+        ("a / a", "1"),
+        ("a ^ b", "exp(b * log(a))")
     ];
     let builder = Builder::new();
     for &(a, b) in &pairs {
