@@ -7,6 +7,7 @@ use std::marker::PhantomData;
 use node::NodeRc;
 use avx::x86_64::{Writer, op, Mode, Reg};
 use memmap::{Mmap, Protection};
+use avx;
 
 
 pub struct Code<V> {
@@ -59,31 +60,38 @@ pub fn avx_jit<'a, F, V, R>(nodes: F, vars: V) -> Code<<R as Map<f32x8>>::Output
 {
     let mut asm = AvxAsm::new();
     let mut num_results = 0;
+    let mut renames = [0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; // virtual reg -> ymm reg
     Compiler::compile(&mut asm, nodes, vars, |asm, r| {
         // this runs for every result
-        match r {
-            Source::Reg(r) => assert_eq!(r.0 as usize, num_results), // simple sanity check
+        let r = match r {
+            Source::Reg(r) => r,
             s => {
                 let r = asm.alloc();
-                assert_eq!(r.0 as usize, num_results);
                 asm.push(Instr::Load(r, s)); // write the source to the output register
+                r
             }
+        };
+
+        if r.0 as usize != num_results {
+            renames.swap(r.0 as usize, num_results);
         }
+
         num_results += 1;
     });
     assert_eq!(num_results, F::N);
 
     // constant expressions will not allocate registers
 
+    let reg = |r: avx::Reg| renames[r.0 as usize];
     let mut writer = Writer::new();
     for instr in asm.instr.iter() {
         match *instr {
-            Instr::Add(r0, r1, s) => writer.vex(op::ADD, r0.0, r1.0, mode(s), None),
-            Instr::Sub(r0, r1, s) => writer.vex(op::SUB, r0.0, r1.0, mode(s), None),
-            Instr::Mul(r0, r1, s) => writer.vex(op::MUL, r0.0, r1.0, mode(s), None),
-            Instr::Round(r0, s, Round::Down) => writer.vex(op::ROUND, r0.0, 0, mode(s), Some(0x9)),
-            Instr::Round(r0, s, Round::Up) => writer.vex(op::ROUND, r0.0, 0, mode(s), Some(0xA)),
-            Instr::Load(r0, s) => writer.vex(op::READ, r0.0, 0, mode(s), None),
+            Instr::Add(r0, r1, s) => writer.vex(op::ADD, reg(r0), reg(r1), mode(s), None),
+            Instr::Sub(r0, r1, s) => writer.vex(op::SUB, reg(r0), reg(r1), mode(s), None),
+            Instr::Mul(r0, r1, s) => writer.vex(op::MUL, reg(r0), reg(r1), mode(s), None),
+            Instr::Round(r0, s, Round::Down) => writer.vex(op::ROUND, reg(r0), 0, mode(s), Some(0x9)),
+            Instr::Round(r0, s, Round::Up) => writer.vex(op::ROUND, reg(r0), 0, mode(s), Some(0xA)),
+            Instr::Load(r0, s) => writer.vex(op::READ, reg(r0), 0, mode(s), None),
         }
     }
     println!("{:?}", asm.registers);
