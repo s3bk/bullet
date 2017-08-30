@@ -38,6 +38,15 @@ impl Display for Tokens {
         Ok(())
     }
 }
+fn wrap_poly(p: &Poly) -> String {
+    let mut tokens = Tokens::new();
+    tokens.poly(p);
+    if tokens.len() > 1 {
+        format!("({})", tokens)
+    } else {
+        tokens.to_string()
+    }
+}
 
 impl Tokens {
     pub fn new() -> Tokens {
@@ -90,7 +99,15 @@ impl Tokens {
             Node::Func(f, ref g) => {
                 tokens.push(format!("{}({})", f, Tokens::node(g)));
             },
-            Node::Poly(ref p) => tokens.poly(p),
+            Node::Poly(ref p) => {
+                match p.factorize() {
+                    Some((p, q)) => {
+                        tokens.push(wrap_poly(&p));
+                        tokens.push(wrap_poly(&q));
+                    },
+                    None => tokens.poly(p),
+                }
+            }
             Node::Var(ref name) => tokens.push(name),
             Node::Tuple(ref parts) => tokens.push(format!("({})", parts.iter().map(|n| Tokens::node(n)).join(", ")))
         }

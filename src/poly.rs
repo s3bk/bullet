@@ -3,7 +3,7 @@ use rational::Rational;
 use std::iter::once;
 use std::collections::hash_map::{HashMap, Entry, Iter};
 use std::ops::{Add, Mul, MulAssign};
-use std::cmp::{max, PartialEq, Eq, PartialOrd, Ord, Ordering};
+use std::cmp::{min, max, PartialEq, Eq, PartialOrd, Ord, Ordering};
 use std::hash::{Hash, Hasher};
 use std::fmt;
 use itertools::Itertools;
@@ -119,6 +119,33 @@ impl Poly {
             out.push(Poly { elements: once((base.clone(), fac)).collect() });
         }
         out
+    }
+    pub fn factorize(&self) -> Option<(Poly, Poly)> {
+        // find the common factor
+        if self.elements.len() < 2 { return None; }
+
+        let mut factors = self.factors();
+        let mut common: HashMap<NodeRc, i64> = factors.next().unwrap().0.iter().cloned().collect();
+        
+        for (ref base, _) in factors {
+            for &(ref v, n) in base.iter() {
+                match common.get_mut(&v) {
+                    Some(m) => *m = min(*m, n),
+                    None => return None // no common base
+                }
+            }
+        }
+
+        // common now contains the common factor
+        let elements = self.factors().map(|(base, &rat)| {
+            let mut base: Base = base.iter().map(|&(ref v, n)| (v.clone(), n - common[&v])).collect();
+            base.sort();
+            (base, rat)
+        }).collect();
+        
+        let poly = Poly { elements };
+        let common_poly = Poly::one(common.into_iter().collect(), 1.into());
+        Some((common_poly, poly))
     }
 }
         
