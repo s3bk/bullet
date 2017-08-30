@@ -257,7 +257,7 @@ fn cmp_poly(a: &Poly, b: &Poly) -> Ordering {
     }
 }
 
-fn cmp_base(a: &[(NodeRc, i64)], b: &[(NodeRc, i64)]) -> Ordering {
+pub fn cmp_base(a: &[(NodeRc, i64)], b: &[(NodeRc, i64)]) -> Ordering {
     match a.len().cmp(&b.len()) {
         Ordering::Equal => {},
         o => return o

@@ -1,5 +1,5 @@
 use node::Node;
-use poly::Poly;
+use poly::{Poly, cmp_base};
 use itertools::Itertools;
 use std::fmt::{self, Display};
 
@@ -59,7 +59,8 @@ impl Tokens {
         self.content.push(t.to_string());
     }
     pub fn poly(&mut self, p: &Poly) {
-        let elements: Vec<_> = p.factors().collect();
+        let mut elements: Vec<_> = p.factors().collect();
+        elements.sort_by(|a, b| cmp_base(&a.0, &b.0));
 
         for (n, &(base, fac)) in elements.iter().enumerate() {
             let (nom, denom) = fac.frac();
