@@ -265,7 +265,7 @@ impl fmt::Display for Poly {
             } else if n != 0 {
                 tokens.push("+")?;
             }
-            if nom.abs() != 1 {
+            if nom.abs() != 1 || base.len() == 0 {
                 tokens.push(nom.abs())?;
             }
 
