@@ -143,6 +143,9 @@ impl Poly {
             }
             common.retain(|&(_, n)| n != 0);
         }
+        if common.len() == 0 {
+            return None;
+        }
 
         // common now contains the common factor
         let elements = self.factors().map(|(bv, &rat)| {

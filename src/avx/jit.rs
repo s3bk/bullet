@@ -2,7 +2,7 @@ use simd::x86::avx::f32x8;
 use tuple::{Map, TupleElements};
 use super::{AvxAsm, Source, Instr};
 use compiler::Compiler;
-use vm::Round;
+use vm::{Round, Cmp};
 use std::marker::PhantomData;
 use node::NodeRc;
 use avx::x86_64::{Writer, op, Mode, Reg};
@@ -65,13 +65,6 @@ impl_call!(r0: "={ymm0}", r1: "={ymm1}");
 impl_call!(r0: "={ymm0}", r1: "={ymm1}", r2: "={ymm2}");
 impl_call!(r0: "={ymm0}", r1: "={ymm1}", r2: "={ymm2}", r3: "={ymm3}");
 
-fn mode(s: Source) -> Mode {
-    match s {
-        Source::Reg(r) => Mode::Direct(r.0),
-        Source::Const(idx) => Mode::Memory(Reg::RDI, idx as i32 * 32),
-        Source::Input(idx) => Mode::Memory(Reg::RDX, idx as i32 * 32),
-    }
-}
 
 pub fn avx_jit<'a, F, V, R>(nodes: F, vars: V) -> Code<<R as Map<f32x8>>::Output>
     where V: TupleElements<Element=&'a str>,
@@ -91,27 +84,60 @@ pub fn avx_jit<'a, F, V, R>(nodes: F, vars: V) -> Code<<R as Map<f32x8>>::Output
                 r
             }
         };
+        //        n r         pos n, r
+        // 0 1 2  0:2  0//2  [0][2]
+        // 2 1 0  1:0  2//1  [0][1]
+        // 1 2 0  2:1        [1][1]
+        
+        // 2 0 1  2 -> 0
+        // 0 2 1  2 -> 1
+        // 0 1 2
 
-        if r.0 as usize != num_results {
-            renames.swap(r.0 as usize, num_results);
+        // 0 2 1  0 -> 0
+        // 0 2 1  2 -> 1
+        // 0 1 2
+        if renames[r.0 as usize] != num_results as u8 {
+            let pos_n = renames.iter().position(|&n| n == num_results as u8).unwrap();
+            renames.swap(pos_n, r.0 as usize);
         }
-
+        
         num_results += 1;
     });
     assert_eq!(num_results, F::N);
 
     // constant expressions will not allocate registers
-
+    for i in 0 .. 16 {
+        println!("{:2} -> {:2}", i, renames[i]);
+    }
     let reg = |r: avx::Reg| renames[r.0 as usize];
+    let mode = |s: Source| match s {
+        Source::Reg(r) => Mode::Direct(reg(r)),
+        Source::Const(idx) => Mode::Memory(Reg::RDI, idx as i32 * 32),
+        Source::Input(idx) => Mode::Memory(Reg::RDX, idx as i32 * 32),
+    };
+
     let mut writer = Writer::new();
     for instr in asm.instr.iter() {
         match *instr {
-            Instr::Add(r0, r1, s) => writer.vex(op::ADD, reg(r0), reg(r1), mode(s), None),
-            Instr::Sub(r0, r1, s) => writer.vex(op::SUB, reg(r0), reg(r1), mode(s), None),
-            Instr::Mul(r0, r1, s) => writer.vex(op::MUL, reg(r0), reg(r1), mode(s), None),
-            Instr::Round(r0, s, Round::Down) => writer.vex(op::ROUND, reg(r0), 0, mode(s), Some(0x9)),
-            Instr::Round(r0, s, Round::Up) => writer.vex(op::ROUND, reg(r0), 0, mode(s), Some(0xA)),
-            Instr::Load(r0, s) => writer.vex(op::READ, reg(r0), 0, mode(s), None),
+            Instr::Add(r0, r1, s)      => writer.vex(op::ADD,   reg(r0), reg(r1), mode(s), None),
+            Instr::Sub(r0, r1, s)      => writer.vex(op::SUB,   reg(r0), reg(r1), mode(s), None),
+            Instr::Mul(r0, r1, s)      => writer.vex(op::MUL,   reg(r0), reg(r1), mode(s), None),
+            Instr::Div(r0, r1, s)      => writer.vex(op::DIV,   reg(r0), reg(r1), mode(s), None),
+            Instr::Inv(r0, s)          => writer.vex(op::RECIP, reg(r0), 0,       mode(s), None),
+            Instr::Round(r0, s, dir)   => writer.vex(op::ROUND, reg(r0), 0,       mode(s), Some(match dir {
+                Round::Down => 0x9,
+                Round::Up => 0xA
+            })),
+            Instr::Load(r0, s)         => writer.vex(op::READ,  reg(r0), 0,       mode(s), None),
+            Instr::Cmp(r0, r1, s, ord) => writer.vex(op::CMP,   reg(r0), reg(r1),   mode(s), Some(match ord {
+                Cmp::EQ => 0x0,
+                Cmp::NE => 0xC,
+                Cmp::LT => 0x11,
+                Cmp::LE => 0x12,
+                Cmp::GT => 0x1E,
+                Cmp::GE => 0x1D
+            })),
+            Instr::MaskMove(r0, r1, s) => writer.vex(op::MASKREAD, reg(r0), reg(r1), mode(s), None)
         }
     }
     println!("{:?}", asm.registers);

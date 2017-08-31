@@ -66,6 +66,17 @@ impl Vm for Syn {
             Round::Down => quote! { #x.floor() }
         }
     }
+    fn div(&mut self, a: Self::Var, b: Self::Var) -> Self::Var {
+        quote! { #a / #b }
+    }
+    fn inv(&mut self, a: Self::Var) -> Self::Var {
+        quote! { #a.inv() }
+    }
+    fn step_at(&mut self, at: Self::Var, x: Self::Var) -> Self::Var {
+        quote! {
+            #x.ge(#at).select(f32x8::splat(1.0), f32::splat(0.0))
+        }
+    }
 }
 
 pub fn syn(node: NodeRc) -> Tokens {

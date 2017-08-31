@@ -2,10 +2,20 @@ use consts::trig_poly;
 use real::Real;
 use std::fmt::Debug;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Round {
     Up,
     Down
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Cmp {
+    EQ,
+    NE,
+    LT,
+    LE,
+    GT,
+    GE
 }
 
 pub trait Vm {
@@ -29,6 +39,12 @@ pub trait Vm {
     fn mul(&mut self, a: Self::Var, b: Self::Var) -> Self::Var {
         self.make_product(vec![a, b])
     }
+    /// a / b
+    fn div(&mut self, a: Self::Var, b: Self::Var) -> Self::Var;
+
+    // 1 / a
+    fn inv(&mut self, a: Self::Var) -> Self::Var;
+    
     fn add(&mut self, a: Self::Var, b: Self::Var) -> Self::Var {
         self.make_sum(vec![a, b])
     }
@@ -178,4 +194,6 @@ pub trait Vm {
         self.poly(&k, y_square)
     }
 
+    /// return 1 if x >= at else 0
+    fn step_at(&mut self, at: Self::Var, x: Self::Var) -> Self::Var;
 }

@@ -1,6 +1,6 @@
 use std::fmt;
 use compiler::Compiler;
-use vm::{Vm, Round};
+use vm::{Vm, Round, Cmp};
 use node::NodeRc;
 use quote::{Tokens, Ident};
 use tuple::{TupleElements, Map};
@@ -40,8 +40,12 @@ enum Instr {
     Add(Reg, Reg, Source),
     Sub(Reg, Reg, Source),
     Mul(Reg, Reg, Source),
+    Div(Reg, Reg, Source),
+    Inv(Reg, Source),
     Round(Reg, Source, Round),
     Load(Reg, Source),
+    MaskMove(Reg, Reg, Source), // conditinal load from const i
+    Cmp(Reg, Reg, Source, Cmp)
 }
 struct AvxAsm {
     instr: Vec<Instr>,
@@ -153,6 +157,43 @@ impl Vm for AvxAsm {
         self.push(Instr::Round(y, x, mode));
         Source::Reg(y)
     }
+    fn step_at(&mut self, at: Self::Var, x: Self::Var) -> Self::Var {
+        self.drop_s(at);
+        let mask = self.alloc();
+        match (at, x) {
+            (Source::Reg(a), s) => self.push(Instr::Cmp(mask, a, s, Cmp::GE)),
+            (s, Source::Reg(b)) => self.push(Instr::Cmp(mask, b, s, Cmp::LT)),
+            (_, _) => panic!("can't use two memory sources")
+        }
+        self.drop(mask);
+        let y = self.alloc();
+        let one = self.make_int(1);
+        self.drop_s(one);
+        self.push(Instr::MaskMove(y, mask, one));
+        Source::Reg(y)
+    }
+    fn div(&mut self, a: Self::Var, b: Self::Var) -> Self::Var {
+        self.drop_s(a);
+        self.drop_s(b);
+        let a = match a {
+            Source::Reg(r) => r,
+            s => {
+                let r = self.alloc();
+                self.push(Instr::Load(r, s));
+                self.drop(r);
+                r
+            }
+        };
+        let r = self.alloc();
+        self.push(Instr::Div(r, a, b));
+        Source::Reg(r)
+    }
+    fn inv(&mut self, a: Self::Var) -> Self::Var {
+        self.drop_s(a);
+        let r = self.alloc();
+        self.push(Instr::Inv(r, a));
+        Source::Reg(r)
+    }
 }
 
 pub fn avx_asm<'a, N, V>(nodes: N, vars: V) -> Tokens
@@ -194,9 +235,20 @@ pub fn avx_asm<'a, N, V>(nodes: N, vars: V) -> Tokens
             Instr::Add(r0, r1, s)            => writeln!(lines, "\tvaddps {}, {}, {}", r0, r1, s),
             Instr::Sub(r0, r1, s)            => writeln!(lines, "\tvsubps {}, {}, {}", r0, r1, s),
             Instr::Mul(r0, r1, s)            => writeln!(lines, "\tvmulps {}, {}, {}", r0, r1, s),
+            Instr::Div(r0, r1, s)            => writeln!(lines, "\tvdivps {}, {}, {}", r0, r1, s),
+            Instr::Inv(r0, s)                => writeln!(lines, "\tvrcpps {}, {}", r0, s),
             Instr::Round(r0, s, Round::Up)   => writeln!(lines, "\tvroundps {}, {}, 0x0A", r0, s),
             Instr::Round(r0, s, Round::Down) => writeln!(lines, "\tvroundps {}, {}, 0x09", r0, s),
             Instr::Load(r0, s)               => writeln!(lines, "\tvmovdqa {}, {}", r0, s),
+            Instr::MaskMove(r0, r1, s)       => writeln!(lines, "\tvmaskmovps {}, {}, {}", r0, r1, s),
+            Instr::Cmp(r0, r1, s, ord)       => writeln!(lines, "\tvcmpps {}, {}, {}, {}", r0, r1, s, match ord {
+                Cmp::EQ => 0x0,
+                Cmp::NE => 0xC,
+                Cmp::LT => 0x11,
+                Cmp::LE => 0x12,
+                Cmp::GT => 0x1E,
+                Cmp::GE => 0x1D
+            }),
         }.unwrap();
     }
     

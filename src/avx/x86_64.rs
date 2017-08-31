@@ -41,9 +41,13 @@ pub mod op {
     pub const ADD: Opcode = (None, P_0F, 0x58);
     pub const SUB: Opcode = (S_66, P_0F, 0x5C);
     pub const MUL: Opcode = (None, P_0F, 0x59);
+    pub const DIV: Opcode = (None, P_0F, 0x5E);
+    pub const RECIP: Opcode = (None, P_0F, 0x53);
     pub const ROUND: Opcode = (S_66, P_0F_3A, 0x08);
     pub const READ: Opcode = (S_66, P_0F, 0x6F);
     pub const WRITE: Opcode = (S_66, P_0F, 0x7F);
+    pub const CMP: Opcode = (S_66, P_0F, 0xC2);
+    pub const MASKREAD: Opcode = (S_66, P_0F_38, 0x2C);
 }
 pub struct Writer {
     buf: Vec<u8>

@@ -111,7 +111,10 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                                     0 => panic!("power of 0"),
                                     1 => v,
                                     i if i > 0 => self.vm.pow_n(v, i as u32),
-                                    _ => unimplemented!("negative powers are not implemented yet")
+                                    i => {
+                                        let p = self.vm.pow_n(v, -i as u32);
+                                        self.vm.inv(p)
+                                    }
                                 }
                             }).collect();
                             Some(self.vm.make_product(prod))
