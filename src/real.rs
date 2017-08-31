@@ -61,15 +61,18 @@ macro_rules! impl_real {
             type Bool = bool;
             type Scalar = $t;
             type Iterator = ::std::iter::Once<$t>;
-
+            
+            #[inline(always)]
             fn splat(s: Self::Scalar) -> Self {
                 s
             }
-            
+
+            #[inline(always)]
             fn values(self) -> Self::Iterator {
                 ::std::iter::once(self)
             }
             
+            #[inline(always)]
             fn int(v: i16) -> Self { v.into() }
             fn frac(nom: i16, denom: u16) -> Self {
                 $t::from(nom) / $t::from(denom)
@@ -84,15 +87,28 @@ macro_rules! impl_real {
                 uniform01.ind_sample(rng)
             }
 
+            #[inline(always)]
             fn abs(self) -> Self { self.abs() }
+
+            #[inline(always)]
             fn sqrt(self) -> Self { self.sqrt() }
-            
+
+            #[inline(always)]
             fn lt(self, rhs: Self) -> Self::Bool { self < rhs }
+
+            #[inline(always)]
             fn le(self, rhs: Self) -> Self::Bool { self <= rhs }
+
+            #[inline(always)]
             fn gt(self, rhs: Self) -> Self::Bool { self > rhs }
+
+            #[inline(always)]
             fn ge(self, rhs: Self) -> Self::Bool { self >= rhs }
+            
+            #[inline(always)]
             fn eq(self, rhs: Self) -> Self::Bool { self == rhs }
 
+            #[inline(always)]
             fn select(self, other: Self, cond: Self::Bool) -> Self {
                 if cond { self } else { other }
             }
@@ -120,19 +136,23 @@ macro_rules! impl_simd {
             type Scalar = $scalar;
             type Iterator = IntoElements<$Tuple<$(first_t!($scalar, $idx)),*>>;
 
+            #[inline(always)]
             fn splat(s: Self::Scalar) -> Self {
                 $simd::splat(s)
             }
             
+            #[inline(always)]
             fn values(self) -> Self::Iterator {
                 $Tuple::from(self).into_elements()
             }
-            
+
+            #[inline(always)]
             fn int(v: i16) -> Self { Self::splat($scalar::from(v)) }
             fn frac(nom: i16, denom: u16) -> Self {
                 Self::splat($scalar::from(nom) / $scalar::from(denom))
             }
-            
+
+            #[inline(always)]
             fn wrap(self, at: Self, span: Self) -> Self {
                 self.gt(at).select(self - span, self)
             }
@@ -142,26 +162,38 @@ macro_rules! impl_simd {
                 $simd::new($(first_e!(uniform01.ind_sample(rng), $idx)),*)
             }
 
+            #[inline(always)]
             fn abs(self) -> Self {
                 self.le(Self::splat(0.0)).select(-self, self)
             }
+            #[inline(always)]
             fn sqrt(self) -> Self {
                 $trait::sqrt(self)
             }
-            
+            #[inline(always)]
             fn min(self, other: Self) -> Self {
                 $trait::min(self, other)
             }
+            #[inline(always)]
             fn max(self, other: Self) -> Self {
                 $trait::max(self, other)
             }
-            
+            #[inline(always)]
             fn lt(self, rhs: Self) -> Self::Bool { $simd::lt(self, rhs) }
+
+            #[inline(always)]
             fn le(self, rhs: Self) -> Self::Bool { $simd::le(self, rhs) }
+
+            #[inline(always)]
             fn gt(self, rhs: Self) -> Self::Bool { $simd::gt(self, rhs) }
+
+            #[inline(always)]
             fn ge(self, rhs: Self) -> Self::Bool { $simd::ge(self, rhs) }
+
+            #[inline(always)]
             fn eq(self, rhs: Self) -> Self::Bool { $simd::eq(self, rhs) }
-            
+
+            #[inline(always)]
             fn select(self, other: Self, cond: Self::Bool) -> Self {
                 cond.select(self, other)
             }

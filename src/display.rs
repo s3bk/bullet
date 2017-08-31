@@ -39,8 +39,7 @@ impl Display for Tokens {
     }
 }
 fn wrap_poly(p: &Poly) -> String {
-    let mut tokens = Tokens::new();
-    tokens.poly(p);
+    let tokens = Tokens::poly(p);
     if tokens.len() > 1 {
         format!("({})", tokens)
     } else {
@@ -58,7 +57,8 @@ impl Tokens {
     pub fn push<T: fmt::Display>(&mut self, t: T) {
         self.content.push(t.to_string());
     }
-    pub fn poly(&mut self, p: &Poly) {
+    pub fn poly(p: &Poly) -> Tokens {
+        let mut tokens = Tokens::new();
         let mut elements: Vec<_> = p.factors().collect();
         elements.sort_by(|a, b| cmp_base(&a.0, &b.0));
 
@@ -66,33 +66,38 @@ impl Tokens {
             let (nom, denom) = fac.frac();
 
             if nom < 0 {
-                self.push("-");
+                tokens.push("-");
             } else if n != 0 {
-                self.push("+");
+                tokens.push("+");
             }
             if nom.abs() != 1 || base.len() == 0 {
-                self.push(nom.abs());
+                tokens.push(nom.abs());
             }
 
             for &(ref v, n) in base.iter() {
+                let v = match **v {
+                    Node::Poly(ref p) => wrap_poly(p),
+                    _ => Tokens::poly(p).to_string()
+                };
                 if n == 1 {
-                    self.push(v);
+                    tokens.push(v);
                 } else {
-                    self.push(format!("{}{}", v, int_super(n)));
+                    tokens.push(format!("{}{}", v, int_super(n)));
                 }
             }
 
             match denom {
                 1 => {},
                 d => {
-                    self.push("/");
-                    self.push(d);
+                    tokens.push("/");
+                    tokens.push(d);
                 }
             }
         }
-        if self.len() == 0 {
-            self.push("0");
+        if tokens.len() == 0 {
+            tokens.push("0");
         }
+        tokens
     }
     pub fn node(n: &Node) -> Tokens {
         let mut tokens = Tokens::new();
@@ -106,7 +111,7 @@ impl Tokens {
                         tokens.push(wrap_poly(&p));
                         tokens.push(wrap_poly(&q));
                     },
-                    None => tokens.poly(p),
+                    None => tokens.push(Tokens::poly(p)),
                 }
             }
             Node::Var(ref name) => tokens.push(name),
