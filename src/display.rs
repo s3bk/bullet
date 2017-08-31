@@ -77,7 +77,7 @@ impl Tokens {
             for &(ref v, n) in base.iter() {
                 let v = match **v {
                     Node::Poly(ref p) => wrap_poly(p),
-                    _ => Tokens::poly(p).to_string()
+                    ref n => Tokens::node(n).to_string()
                 };
                 if n == 1 {
                     tokens.push(v);
