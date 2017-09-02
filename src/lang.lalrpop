@@ -12,6 +12,7 @@ pub Factor: NodeResult<'input> = {
     <l:Factor> "*" <r:Pow> => Ok(builder.mul(l?, r?)),
     <l:Factor> "·" <r:Pow> => Ok(builder.mul(l?, r?)),
     <l:Factor> "/" <r:Pow> => builder.div(l?, r?),
+    <l:Factor> <r:Pow> => Ok(builder.mul(l?, r?)),
     Pow,
 };
 
@@ -21,14 +22,13 @@ pub Op: Op<'input> = {
 
 pub Pow: NodeResult<'input> = {
     <b:Func> "^" <e:Pow> => builder.pow(b?, e?),
-    <l:Num> <r:Pow> => Ok(builder.mul(l?, r?)),
     <o:Op> <f:Pow> => builder.op(o, f?),
     <o:Op> "^" <n:r"[0-9]+"> <f:Pow> => builder.op_n(o, n.parse().unwrap(), f?),
     Func,
 };
 
 pub Func: NodeResult<'input> = {
-    <f:r"[[:alpha:]]+"> "(" <g:Expr> ")" => builder.function(f, g?),
+    <f:r"[[:alpha:]]+\("> <g:Expr> ")" => builder.function(&f[..f.len()-1], g?),
     Term,
 };
 
