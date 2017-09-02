@@ -5,6 +5,7 @@ grammar<'b>(builder: &'b Builder);
 pub Expr: NodeResult<'input> = {
     <l:Expr> "+" <r:Factor> => Ok(builder.add(l?, r?)),
     <l:Expr> "-" <r:Factor> => Ok(builder.sub(l?, r?)),
+    "-" <f:Factor> => Ok(builder.neg(f?)),
     Factor,
 };
 
@@ -17,7 +18,7 @@ pub Factor: NodeResult<'input> = {
 };
 
 pub Op: Op<'input> = {
-    <v:r"d/d[[:alpha:]]+"> => Op::Diff(&v[3..]),
+    <v:r"d/d\pL+"> => Op::Diff(&v[3..]),
 };
 
 pub Pow: NodeResult<'input> = {
@@ -28,7 +29,7 @@ pub Pow: NodeResult<'input> = {
 };
 
 pub Func: NodeResult<'input> = {
-    <f:r"[[:alpha:]]+\("> <g:Expr> ")" => builder.function(&f[..f.len()-1], g?),
+    <f:r"\pL+\("> <g:Expr> ")" => builder.function(&f[..f.len()-1], g?),
     Term,
 };
 
@@ -39,4 +40,4 @@ pub Term: NodeResult<'input> = {
 };
 
 Num: NodeResult<'input> = <s:r"[0-9]+"> => builder.decimal(s);
-Var: NodeResult<'input> = <s:r"[[:alpha:]]+"> => Ok(builder.var(s));
+Var: NodeResult<'input> = <s:r"\pL+"> => Ok(builder.var(s));

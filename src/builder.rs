@@ -95,6 +95,11 @@ impl Builder {
         Ok(self.poly(poly(a) * (poly(b).pow_i(self, -1)?)))
     }
 
+    /// - a
+    pub fn neg(&self, a: NodeRc) -> NodeRc {
+        self.mul(self.int(-1), a)
+    }
+    
     /// a ^ b
     pub fn pow(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
         if let Node::Poly(ref p) = *b {
