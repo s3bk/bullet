@@ -7,6 +7,12 @@ use lang::parse_Expr;
 use lalrpop_util;
 use cast::Cast;
 use std::fmt;
+use diff::diff;
+
+#[derive(Copy, Clone, Debug)]
+pub enum Op<'a> {
+    Diff(&'a str)
+}
 
 #[derive(Debug)]
 pub enum Error<'a> {
@@ -108,6 +114,18 @@ impl Builder {
     /// f(g)
     pub fn func(&self, f: Func, g: NodeRc) -> NodeRc {
         self.intern(Node::Func(f, g))
+    }
+
+    pub fn op<'a>(&self, o: Op<'a>, f: NodeRc) -> NodeResult<'a> {
+        match o {
+            Op::Diff(v) => Ok(diff(self, &f, v)?)
+        }
+    }
+    pub fn op_n<'a>(&self, o: Op<'a>, n: u64, mut f: NodeRc) -> NodeResult<'a> {
+        for _ in 0 .. n {
+            f = self.op(o, f)?;
+        }
+        Ok(f)
     }
 
     /// f(g) (by name)
