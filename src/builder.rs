@@ -28,7 +28,7 @@ impl<'a> fmt::Display for Error<'a> {
         match *self {
             MissingFunction(s) => write!(f, "the function '{}' is not implemented", s),
             ParseError(UnrecognizedToken { token: Some((_start, (_, t), _end)), ref expected }) => 
-                write!(f, "the character '{}' was not on of the expected ({})", t, expected.join(", ")),
+                write!(f, "the character '{}' was not one of the expected {}", t, expected.join(", ")),
             ParseError(ref e) => write!(f, "{:?}", e),
             IntegerError => write!(f, "not an integer"),
             Poly(PolyError::DivZero) => write!(f, "division by zero")

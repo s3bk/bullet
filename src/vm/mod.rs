@@ -158,13 +158,16 @@ pub trait Vm {
         let mut y = self.add(z, minus_one_half);
         let y2 = self.copy(&mut y);
 
+        let poly = trig_poly::SIN_8_PI;
+        let n = poly.len() as i32;
         // actually I lied earlier. we *could* now scale again by 2 pi and use the original polynom,
         // but we can instead scale the constant terms of the polynom, and get the same result
         // k[0] * x^15 + k[1] x^13 + k[2] x^11 + k[3] x^9 + k[4] x^7 + k[5] x^5 + k[6] x^3 + k[7] * x^1
         // in short sum_i=k[i] x^(15-2i)
         // so k[i] needs to be multiplied by (2 pi)^(15-2i)
-        let k: Vec<_> = trig_poly::SIN_8_PI.iter().enumerate()
-            .map(|(i, &p)| p * (2.0 * pi).powi(15 - 2 * i as i32)) // adjust for the fact that we feed x/(2pi)
+
+        let k: Vec<_> = poly.iter().enumerate()
+            .map(|(i, &p)| p * (2.0 * pi).powi(2 * n - 1 - 2 * i as i32)) // adjust for the fact that we feed x/(2pi)
             .collect();
 
         // use x^2 instead of x ..
@@ -186,9 +189,12 @@ pub trait Vm {
 
         let minus_one_half = self.make_const(-0.5);
         let y = self.add(z, minus_one_half);
+
+        let poly = trig_poly::COS_8_PI;
+        let n = poly.len() as i32;
         
-        let k: Vec<_> = trig_poly::COS_8_PI.iter().enumerate()
-            .map(|(i, &p)| p * (2.0 * pi).powi(2 * (8 - i as i32) - 2)) // adjust for the fact that we feed x/(2pi)
+        let k: Vec<_> = poly.iter().enumerate()
+            .map(|(i, &p)| p * (2.0 * pi).powi(2 * (n - i as i32) - 2)) // adjust for the fact that we feed x/(2pi)
             .collect();
         let y_square = self.pow_n(y, 2);
         self.poly(&k, y_square)
