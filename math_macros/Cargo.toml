@@ -1,0 +1,11 @@
+[package]
+name = "math_macros"
+version = "0.1.0"
+authors = ["Sebastian Köln <sebk@rynx.org>"]
+
+[dependencies]
+math = { git = "https://github.com/s3bk/math.git" }
+simd = "*"
+
+[lib]
+proc-macro = true
