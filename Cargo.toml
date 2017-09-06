@@ -28,3 +28,6 @@ jack = "*"
 hound = "*"
 termion = "*"
 hiirc = "*"
+
+[workspace]
+members = ["math_macros"]

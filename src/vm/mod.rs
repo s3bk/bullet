@@ -158,7 +158,7 @@ pub trait Vm {
         let mut y = self.add(z, minus_one_half);
         let y2 = self.copy(&mut y);
 
-        let poly = trig_poly::SIN_8_PI;
+        let poly = trig_poly::SIN_5_PI;
         let n = poly.len() as i32;
         // actually I lied earlier. we *could* now scale again by 2 pi and use the original polynom,
         // but we can instead scale the constant terms of the polynom, and get the same result
@@ -190,7 +190,7 @@ pub trait Vm {
         let minus_one_half = self.make_const(-0.5);
         let y = self.add(z, minus_one_half);
 
-        let poly = trig_poly::COS_8_PI;
+        let poly = trig_poly::COS_5_PI;
         let n = poly.len() as i32;
         
         let k: Vec<_> = poly.iter().enumerate()
