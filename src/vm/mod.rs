@@ -2,6 +2,9 @@ use consts::trig_poly;
 use real::Real;
 use std::fmt::Debug;
 
+pub mod syn;
+#[cfg(target_feature = "avx")] pub mod avx;
+
 #[derive(Debug, Copy, Clone)]
 pub enum Round {
     Up,
