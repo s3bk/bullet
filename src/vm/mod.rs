@@ -2,6 +2,8 @@ use consts::trig_poly;
 use real::Real;
 use std::fmt::Debug;
 
+pub mod glsl;
+
 #[derive(Debug, Copy, Clone)]
 pub enum Round {
     Up,
