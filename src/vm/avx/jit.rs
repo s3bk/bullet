@@ -5,9 +5,9 @@ use compiler::Compiler;
 use vm::{Round, Cmp};
 use std::marker::PhantomData;
 use node::NodeRc;
-use avx::x86_64::{Writer, op, Mode, Reg};
+use super::x86_64::{Writer, op, Mode, Reg};
 use memmap::{Mmap, Protection};
-use avx;
+use vm::avx;
 
 
 pub struct Code<V> {

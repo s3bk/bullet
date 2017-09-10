@@ -11,7 +11,6 @@
 #![feature(proc_macro)]
 #![feature(asm)]
 
-extern crate syn;
 extern crate simd;
 extern crate rand;
 extern crate tuple;
@@ -49,4 +48,4 @@ pub mod prelude {
 }
 
 pub mod vm;
-#[cfg(target_feature = "avx")] pub mod avx;
+
