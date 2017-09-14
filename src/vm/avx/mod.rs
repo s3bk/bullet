@@ -201,8 +201,6 @@ pub fn avx_asm<'a, N, V>(nodes: N, vars: V) -> Tokens
           V: TupleElements<Element=&'a str>
 { 
     let mut asm = AvxAsm::new();
-    let num_inputs = asm.inputs.len();
-    let num_consts = asm.consts.len();
 
     let mut def_out = vec![]; // defines
     let mut reg_out = vec![]; // registers
@@ -251,11 +249,13 @@ pub fn avx_asm<'a, N, V>(nodes: N, vars: V) -> Tokens
             }),
         }.unwrap();
     }
-    
+
+    let num_inputs = asm.inputs.len();
+    let num_consts = asm.consts.len();
     let s_inputs = asm.inputs;
     let s_consts = asm.consts.iter().map(|c| quote! { #c });
     let s_clobber = (0 .. asm.used).map(|r| format!("{{{}}}", r));
-
+    
     let out = quote! { unsafe {
         let inputs: &[f32x8; #num_inputs] = &[ #( #s_inputs ),* ];
         static CONSTANTS: [f32x8; #num_consts] = [ #( f32x8::splat(#s_consts) ),* ];

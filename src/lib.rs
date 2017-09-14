@@ -14,8 +14,6 @@
 extern crate simd;
 extern crate rand;
 extern crate tuple;
-extern crate optimization;
-extern crate typenum;
 extern crate itertools;
 extern crate petgraph;
 extern crate lalrpop_util;

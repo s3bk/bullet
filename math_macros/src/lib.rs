@@ -3,8 +3,9 @@
 extern crate math;
 extern crate proc_macro;
 
-use proc_macro::TokenStream;
-use math::instr;
+use proc_macro::{TokenStream, TokenNode};
+use math::vm::syn::syn;
+use math::avx::avx_asm;
 use math::node::NodeRc;
 use math::builder::Builder;
 
@@ -17,10 +18,10 @@ fn parse(t: TokenStream) -> NodeRc {
 
 #[proc_macro]
 pub fn math(t: TokenStream) -> TokenStream {
-    instr::syn::syn(parse(t)).parse().expect("failed to parse output")
+    syn(parse(t)).parse().expect("failed to parse output")
 }
 
 #[proc_macro]
 pub fn math_avx(t: TokenStream) -> TokenStream {
-    instr::avx::asm(parse(t)).parse().expect("failed to parse output")
+    avx_asm((&parse(t),), ("x",)).parse().expect("failed to parse output")
 }
