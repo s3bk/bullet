@@ -1,4 +1,5 @@
-use builder::{Builder, NodeResult, Op};
+use builder::{Builder, NodeResult};
+use node::Op;
 
 grammar<'b>(builder: &'b Builder);
 
@@ -13,29 +14,24 @@ pub Factor: NodeResult<'input> = {
     <l:Factor> "*" <r:Pow> => Ok(builder.mul(l?, r?)),
     <l:Factor> "·" <r:Pow> => Ok(builder.mul(l?, r?)),
     <l:Factor> "/" <r:Pow> => builder.div(l?, r?),
-    <l:Factor> <r:Pow> => Ok(builder.mul(l?, r?)),
+    <l:r"[0-9]+"> <r:Pow> => Ok(builder.mul(builder.decimal(l)?, r?)),
+    <l:r"\pL+"> <r:Pow> => builder.apply_named(l, r?),
     Pow,
 };
 
-pub Op: Op<'input> = {
-    <v:r"d/d\pL+"> => Op::Diff(&v[3..]),
+pub Op: NodeResult<'input> = {
+    <v:r"d/d(\pL+)"> => builder.op(Op::Diff(v[3..].into())),
 };
 
 pub Pow: NodeResult<'input> = {
-    <b:Func> "^" <e:Pow> => builder.pow(b?, e?),
-    <o:Op> <f:Pow> => builder.op(o, f?),
-    <o:Op> "^" <n:r"[0-9]+"> <f:Pow> => builder.op_n(o, n.parse().unwrap(), f?),
-    Func,
-};
-
-pub Func: NodeResult<'input> = {
-    <f:r"\pL+\("> <g:Expr> ")" => builder.function(&f[..f.len()-1], g?),
-    Term,
+    <b:Term> "^" <e:Pow> => builder.pow(b?, e?),
+    Term
 };
 
 pub Term: NodeResult<'input> = {
     Num,
     Var,
+    Op,
     "(" <Expr> ")",
 };
 

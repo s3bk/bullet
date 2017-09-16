@@ -26,7 +26,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                         },
                         Node::Func(_, ref g) => queue.push(g),
                         Node::Var(ref name) => vars.push(name.as_str()),
-                        Node::Tuple(_) => unimplemented!()
+                        _ => unimplemented!()
                     }
                 },
                 Entry::Occupied(mut o) => *o.get_mut() += 1
@@ -71,6 +71,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
         
         for name in vars.into_elements() {
             let var = comp.vm.make_source(name);
+	    println!("source {} @ {:?}", name, var);
             comp.sources.insert(name, var);
         }
 
@@ -134,7 +135,10 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                     _ => self.vm.make_sum(sum)
                 }
             },
-            Node::Var(ref name) => self.sources.remove(name.as_str()).expect("source was already used"),
+            Node::Var(ref name) => {
+	        println!("use {}", name);
+	        self.sources.remove(name.as_str()).expect("source was already used")
+	    },
             Node::Func(f, ref g) => {
                 let x = self.generate(g);
                 match f {
@@ -143,7 +147,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                     _ => unimplemented!()
                 }
             },
-            Node::Tuple(_) => unimplemented!()
+            _ => unimplemented!()
 
         };
         println!("{} uses for {} (stored in {:?})", self.uses[node], node, var);

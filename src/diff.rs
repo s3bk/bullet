@@ -28,7 +28,8 @@ pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc, DiffE
         Node::Tuple(ref parts) => {
             let parts: Result<Vec<_>, _> = parts.iter().map(|p| diff(builder, p, var)).collect();
             builder.tuple(parts?)
-        }
+        },
+        _ => unimplemented!()
     };
 
     Ok(out)

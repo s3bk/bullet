@@ -7,19 +7,16 @@ use lang::parse_Expr;
 use lalrpop_util;
 use cast::Cast;
 use std::fmt;
-use diff::diff;
-
-#[derive(Copy, Clone, Debug)]
-pub enum Op<'a> {
-    Diff(&'a str)
-}
+use std::collections::HashMap;
+use std::iter::once;
 
 #[derive(Debug)]
 pub enum Error<'a> {
     MissingFunction(&'a str),
     ParseError(lalrpop_util::ParseError<usize, (usize, &'a str), ()>),
     IntegerError,
-    Poly(PolyError)
+    Poly(PolyError),
+    Undefined(&'a str)
 }
 impl<'a> fmt::Display for Error<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -31,7 +28,8 @@ impl<'a> fmt::Display for Error<'a> {
                 write!(f, "the character '{}' was not one of the expected {}", t, expected.join(", ")),
             ParseError(ref e) => write!(f, "{:?}", e),
             IntegerError => write!(f, "not an integer"),
-            Poly(PolyError::DivZero) => write!(f, "division by zero")
+            Poly(PolyError::DivZero) => write!(f, "division by zero"),
+            Undefined(name) => write!(f, "'{}' is not defined", name) 
         }       
     }
 }
@@ -40,8 +38,14 @@ impl<'a> From<PolyError> for Error<'a> {
 }
 pub type NodeResult<'a> = Result<NodeRc, Error<'a>>;
 
+struct Definition {
+    args: Vec<String>,
+    expr: NodeRc
+}
+
 pub struct Builder {
     cache: RefCell<Cache>,
+    defs: HashMap<String, Definition>
 }
 
 fn poly(node: NodeRc) -> Poly {
@@ -53,7 +57,10 @@ fn poly(node: NodeRc) -> Poly {
 
 impl Builder {
     pub fn new() -> Builder {
-        Builder { cache: RefCell::new(Cache::new()) }
+        Builder {
+            cache: RefCell::new(Cache::new()),
+            defs:  HashMap::new()
+        }
     }
     pub fn parse<'a>(&self, expr: &'a str) -> NodeResult<'a> {
         match parse_Expr(self, expr) {
@@ -121,20 +128,12 @@ impl Builder {
         self.intern(Node::Func(f, g))
     }
 
-    pub fn op<'a>(&self, o: Op<'a>, f: NodeRc) -> NodeResult<'a> {
-        match o {
-            Op::Diff(v) => Ok(diff(self, &f, v)?)
-        }
-    }
-    pub fn op_n<'a>(&self, o: Op<'a>, n: u64, mut f: NodeRc) -> NodeResult<'a> {
-        for _ in 0 .. n {
-            f = self.op(o, f)?;
-        }
-        Ok(f)
+    pub fn op(&self, op: Op) -> NodeResult<'static> {
+        Ok(self.intern(Node::Op(op)))
     }
 
     /// f(g) (by name)
-    pub fn function<'a>(&self, name: &'a str, arg: NodeRc) -> Result<NodeRc, Error<'a>> {
+    pub fn function<'a>(&self, name: &'a str, arg: NodeRc) -> NodeResult<'a> {
         let f = Func::from_name(name).ok_or(Error::MissingFunction(name))?;
         Ok(self.func(f, arg))
     }
@@ -142,6 +141,47 @@ impl Builder {
     /// make a name variable
     pub fn var(&self, name: &str) -> NodeRc {
         self.intern(Node::Var(name.into()))
+    }
+
+    /// magic 'apply' function
+    pub fn apply_named<'a>(&self, left: &'a str, right: NodeRc) -> NodeResult<'a> {
+        let def = self.defs.get(left).ok_or(Error::Undefined(left))?;
+
+        let subst = match *right {
+            Node::Tuple(ref parts) => parts.clone(),
+            _ => vec![right.clone()]
+        };
+        let map: HashMap<_, _> = def.args.iter()
+            .zip(subst.into_iter())
+            .map(|(var, subst)| (&**var, subst))
+            .collect();
+
+        Ok(self.substitute(&def.expr, &map))
+    }
+
+    fn substitute(&self, node: &NodeRc, map: &HashMap<&str, NodeRc>) -> NodeRc {
+        match **node {
+            Node::Var(ref name) => match map.get(&**name) {
+                Some(node) => node.clone(),
+                None => node.clone()
+            },
+            Node::Tuple(ref parts) => self.tuple(parts.iter().map(|n| self.substitute(n, map)).collect()),
+            Node::Poly(ref p) => self.sum(
+                p.factors().map(|(base, &fac)| {
+                    self.product(
+                        once(self.rational(fac))
+                            .chain(
+                                base.iter().map(|&(ref v, p)| self.pow_i(
+                                    self.substitute(v, map),
+                                    p.cast().expect("too high")
+                                ).unwrap())
+                            )
+                    )
+                })
+            ),
+            Node::Func(f, ref n) => self.func(f, self.substitute(n, map)),
+            _ => unimplemented!()
+        }
     }
 
     /// f_0 · f_1 · f_2 · … · f_n

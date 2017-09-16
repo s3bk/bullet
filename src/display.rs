@@ -115,7 +115,8 @@ impl Tokens {
                 }
             }
             Node::Var(ref name) => tokens.push(name),
-            Node::Tuple(ref parts) => tokens.push(format!("({})", parts.iter().map(|n| Tokens::node(n)).join(", ")))
+            Node::Tuple(ref parts) => tokens.push(format!("({})", parts.iter().map(|n| Tokens::node(n)).join(", "))),
+            Node::Op(ref o) => tokens.push(o.to_string())
         }
         tokens
     }

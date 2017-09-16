@@ -61,12 +61,25 @@ pub enum Sign {
     Positive
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub enum Op {
+    Diff(String)
+}
+impl fmt::Display for Op {
+    fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Op::Diff(ref v) => write!(w, "d/d{}", v)
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Node {
     Var(String),
     Func(Func, NodeRc),
     Poly(Poly),
-    Tuple(Vec<NodeRc>)
+    Tuple(Vec<NodeRc>),
+    Op(Op)
 }
 
 impl fmt::Display for Node {
