@@ -1,13 +1,15 @@
 use consts::trig_poly;
 use real::Real;
 use std::fmt::Debug;
-
+use itertools::Itertools;
 
 pub mod syn;
 #[cfg(target_feature = "avx")] pub mod avx;
 
 pub mod glsl;
 
+#[cfg(feature="nvidia")]
+pub mod ptx;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Round {
@@ -33,8 +35,12 @@ pub trait Vm {
     // functions that need to be implemented
     fn make_const(&mut self, f64) -> Self::Var;
     fn make_source(&mut self, name: &str) -> Self::Var;
-    fn make_sum(&mut self, parts: Vec<Self::Var>) -> Self::Var;
-    fn make_product(&mut self, parts: Vec<Self::Var>) -> Self::Var;
+    fn make_sum(&mut self, parts: Vec<Self::Var>) -> Self::Var {
+        parts.into_iter().fold1(|a, b| self.add(a, b)).expect("empty sum")
+    }
+    fn make_product(&mut self, parts: Vec<Self::Var>) -> Self::Var {
+        parts.into_iter().fold1(|a, b| self.mul(a, b)).expect("empty product")
+    }
     fn store(&mut self, var: &mut Self::Var, uses: usize) -> Self::Storage;
     fn load(&mut self, storage: &Self::Storage) -> Self::Var;
     fn round(&mut self, a: Self::Var, mode: Round) -> Self::Var;

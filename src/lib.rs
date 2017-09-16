@@ -18,7 +18,8 @@ extern crate itertools;
 extern crate petgraph;
 extern crate lalrpop_util;
 extern crate memmap;
-
+#[cfg(feature="nvidia")]
+extern crate cuda;
 #[macro_use] extern crate quote;
 
 
