@@ -18,7 +18,7 @@ quote = "*"
 petgraph = "*"
 syn = "*"
 memmap = "*"
-cuda = { path="../cuda", optional=true }
+cuda = { git="https://github.com/s3bk/cuda.git", optional=true }
 
 [features]
 nvidia = ["cuda"]

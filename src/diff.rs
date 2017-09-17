@@ -12,16 +12,16 @@ pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc, DiffE
             builder.mul(
                 match f {
                     Func::Sin => // d/dx sin(g(x)) = cos(g(x)) g'(x)
-                        builder.func(Func::Cos, g.clone()), 
+                        builder.func(Func::Cos, g.clone())?, 
                     Func::Cos => // d/dx cos(g(x)) = - sin(g(x)) g'(x)
-                        builder.mul(builder.int(-1), builder.func(Func::Sin, g.clone())),
+                        builder.mul(builder.int(-1), builder.func(Func::Sin, g.clone())?)?,
                     Func::Log => // d/dx log(g(x)) = g'(x) / g(x)
                         builder.pow_i(g.clone(), -1)?,
                     Func::Exp => // d/dx exp(g(x)) = exp(g(x)) g'(x)
-                        builder.func(Func::Exp, g.clone()),
+                        builder.func(Func::Exp, g.clone())?,
                 },
                 dg
-            )
+            )?
         },
         Node::Var(ref s) => builder.int((s == var) as i64),
         Node::Poly(ref p) => builder.poly(diff_poly(builder, p, var)?),

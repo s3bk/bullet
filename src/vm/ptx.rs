@@ -14,7 +14,7 @@ macro_rules! line {
         {
             let out = $selv.alloc();
             let mut instr = format!("\t{}\t{}", $instr, out);
-            $( write!(instr, ", {}", $arg).unwrap(); )*
+            $( write!(instr, ",\t{}", $arg).unwrap(); )*
             write!(instr, ";").unwrap();
             $selv.push(instr);
             out
@@ -43,7 +43,7 @@ impl Ptx {
     fn alloc(&mut self) -> Reg {
         let n = self.num_regs;
         self.num_regs += 1;
-        format!("_r{}", self.num_regs)
+        format!("_r{}", n)
     }
     fn assemble(&self, out: Vec<Reg>) -> String {
         format!("\
@@ -88,29 +88,36 @@ impl Ptx {
         
 
         let mut prog = ptx.assemble(out);
+        println!("{}", prog);
         ctx.create_module(&mut prog).expect("failed to create module")
     }
 }
-#[test]
-fn test_ptx() {
-    use builder::Builder;
-    use cuda::Device;
 
-    let b = Builder::new();
-    let n = b.parse("sin(x^4)^2 + cos(3*x-5)").unwrap();
+pub fn bench_ptx(n: &NodeRc, count: usize) -> f64{
+    use std::time::Instant;
+    use cuda::Device;
 
     let dev = Device::get(0).expect("failed to init");
     let ctx = dev.create_context().unwrap();
     let m = Ptx::compile(&n, &ctx);
 
-    let mut data = vec![0f32; 1024];
+    let mut data = vec![0f32; count];
     let f = m.get("main").expect("could not get kernel adress");
+    let t0 = Instant::now();
     unsafe {
         f.launch_simple(&mut data).expect("failed to launch kernel");
     }
-    println!("{:?}", data);
+    let dt = t0.elapsed();
+    dt.as_secs() as f64 + dt.subsec_nanos() as f64 * 1e-9
 }
 
+#[test]
+fn test_ptx() {
+    use builder::Builder;
+    let b = Builder::new();
+    let n = b.parse("sin(x^4)^2 + cos(3*x-5)").unwrap();
+    println!("{}ms", 1000. * bench_ptx(&n));
+}
     
 impl Vm for Ptx {
     type Storage = Reg;
@@ -119,8 +126,9 @@ impl Vm for Ptx {
         line!(self, "mov.f32", out, f32_to_hex(c as f32))
     }
     fn make_source(&mut self, name: &str) -> Self::Var {
+        let off = self.inputs.len() * 4;
         self.inputs.push(name.to_owned());
-        let off = self.inputs.len();
+        
         let reg = self.alloc();
         self.push(format!("\tld.cs.f32\t{}, [data+{}];", reg, off));
         reg

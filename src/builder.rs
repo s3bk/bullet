@@ -19,7 +19,8 @@ pub enum Error<'a> {
     MissingFunction(&'a str),
     ParseError(lalrpop_util::ParseError<usize, (usize, &'a str), ()>),
     IntegerError,
-    Poly(PolyError)
+    Poly(PolyError),
+    ShapeMismatch(usize, usize),
 }
 impl<'a> fmt::Display for Error<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -31,7 +32,8 @@ impl<'a> fmt::Display for Error<'a> {
                 write!(f, "the character '{}' was not one of the expected {}", t, expected.join(", ")),
             ParseError(ref e) => write!(f, "{:?}", e),
             IntegerError => write!(f, "not an integer"),
-            Poly(PolyError::DivZero) => write!(f, "division by zero")
+            Poly(PolyError::DivZero) => write!(f, "division by zero"),
+            ShapeMismatch(a, b) => writeln!(f, "shapes do not match ({} vs. {})", a, b)
         }       
     }
 }
@@ -74,57 +76,104 @@ impl Builder {
     pub fn poly(&self, p: Poly) -> NodeRc {
         self.intern(Node::Poly(p))
     }
-    
+
+    fn uniform<F>(&self, a: NodeRc, b: NodeRc, f: F) -> NodeResult<'static>
+        where F: Fn(NodeRc, NodeRc) -> NodeResult<'static>
+    {
+        match (&*a, &*b) {
+            (&Node::Tuple(ref ta), &Node::Tuple(ref tb)) => {
+                if ta.len() != tb.len() {
+                    return Err(Error::ShapeMismatch(ta.len(), tb.len()));
+                }
+                let mut v = Vec::with_capacity(ta.len());
+                for (a, b) in ta.iter().zip(tb.iter()) {
+                    v.push(f(a.clone(), b.clone())?);
+                }
+                Ok(self.tuple(v))
+            },
+            (&Node::Tuple(ref ta), _) => {
+                let mut v = Vec::with_capacity(ta.len());
+                for a in ta {
+                    v.push(f(a.clone(), b.clone())?);
+                }
+                Ok(self.tuple(v))
+            },
+            (_, &Node::Tuple(ref tb)) => {
+                let mut v = Vec::with_capacity(tb.len());
+                for b in tb {
+                    v.push(f(a.clone(), b.clone())?);
+                }
+                Ok(self.tuple(v))
+            },
+            (_, _) => f(a.clone(), b.clone())
+        }
+    }
+    fn uniform_one<F, T>(&self, a: NodeRc, t: T, f: F) -> NodeResult<'static>
+        where F: Fn(NodeRc, T) -> NodeResult<'static>, T: Clone
+    {
+        match *a {
+            Node::Tuple(ref ta) => {
+                let mut v = Vec::with_capacity(ta.len());
+                for a in ta {
+                    v.push(f(a.clone(), t.clone())?);
+                }
+                Ok(self.tuple(v))
+            },
+            _ => f(a.clone(), t)
+        }
+    }
     /// a + b
-    pub fn add(&self, a: NodeRc, b: NodeRc) -> NodeRc {
-        self.poly(poly(a) + poly(b))
+    pub fn add(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
+        self.uniform(a, b, |a, b| Ok(self.poly(poly(a) + poly(b))))
     }
 
     /// a - b
-    pub fn sub(&self, a: NodeRc, b: NodeRc) -> NodeRc {
-        self.poly(poly(a) + poly(b) * (-1))
+    pub fn sub(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
+        self.uniform(a, b, |a, b| Ok(self.poly(poly(a) + poly(b) * (-1))))
     }
 
     /// a * b
-    pub fn mul(&self, a: NodeRc, b: NodeRc) -> NodeRc {
-        self.poly(poly(a) * poly(b))
+    pub fn mul(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
+        self.uniform(a, b, |a, b| Ok(self.poly(poly(a) * poly(b))))
     }
 
     /// a / b
     pub fn div(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
-        Ok(self.poly(poly(a) * (poly(b).pow_i(self, -1)?)))
+        self.uniform(a, b, |a, b| Ok(self.poly(poly(a) * (poly(b).pow_i(self, -1)?))))
     }
 
     /// - a
-    pub fn neg(&self, a: NodeRc) -> NodeRc {
+    pub fn neg(&self, a: NodeRc) -> NodeResult<'static> {
         self.mul(self.int(-1), a)
     }
     
     /// a ^ b
     pub fn pow(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
-        if let Node::Poly(ref p) = *b {
-            if let Some(i) = p.as_int().and_then(|i| i.cast()) {          
-                return Ok(self.pow_i(a, i)?);
+        self.uniform(a, b, |a, b| {
+            if let Node::Poly(ref p) = *b {
+                if let Some(i) = p.as_int().and_then(|i| i.cast()) {          
+                    return Ok(self.pow_i(a, i)?);
+                }
             }
-        }
-
-        let g = self.func(Func::Log, a);
-        Ok(self.func(Func::Exp, self.mul(g, b)))
+            
+            let g = self.func(Func::Log, a)?;
+            self.func(Func::Exp, self.mul(g, b)?)
+        })
     }
     /// a ^ i
     pub fn pow_i(&self, a: NodeRc, i: i32) -> NodeResult<'static> {
-        Ok(self.poly(poly(a).pow_i(self, i)?))
+        self.uniform_one(a, i, |a, i| Ok(self.poly(poly(a).pow_i(self, i)?)))
     }
 
     /// f(g)
-    pub fn func(&self, f: Func, g: NodeRc) -> NodeRc {
-        self.intern(Node::Func(f, g))
+    pub fn func(&self, f: Func, g: NodeRc) -> NodeResult<'static> {
+        self.uniform_one(g, f, |g, f| Ok(self.intern(Node::Func(f, g))))
     }
 
     pub fn op<'a>(&self, o: Op<'a>, f: NodeRc) -> NodeResult<'a> {
-        match o {
+        self.uniform_one(f, o, |f, o| match o {
             Op::Diff(v) => Ok(diff(self, &f, v)?)
-        }
+        })
     }
     pub fn op_n<'a>(&self, o: Op<'a>, n: u64, mut f: NodeRc) -> NodeResult<'a> {
         for _ in 0 .. n {
@@ -136,7 +185,7 @@ impl Builder {
     /// f(g) (by name)
     pub fn function<'a>(&self, name: &'a str, arg: NodeRc) -> Result<NodeRc, Error<'a>> {
         let f = Func::from_name(name).ok_or(Error::MissingFunction(name))?;
-        Ok(self.func(f, arg))
+        self.func(f, arg)
     }
 
     /// make a name variable
@@ -145,21 +194,17 @@ impl Builder {
     }
 
     /// f_0 · f_1 · f_2 · … · f_n
-    pub fn product<I>(&self, factors: I) -> NodeRc where I: IntoIterator<Item=NodeRc> {
-        let mut p = Poly::int(1);
-        for f in factors.into_iter() {
-            p = p * poly(f);
-        }
-        self.poly(p)
+    pub fn product<I>(&self, mut factors: I) -> NodeResult<'static>
+        where I: IntoIterator<Item=NodeRc>
+    {
+        try_fold(factors, self.int(1), |a, b| self.mul(a, b))
     }
 
     /// f_0 + f_1 + f_2 + … + f_n
-    pub fn sum<I>(&self, summands: I) -> NodeRc where I: IntoIterator<Item=NodeRc> {
-        let mut p = Poly::int(0);
-        for n in summands.into_iter() {
-            p = p + poly(n);
-        }
-        self.poly(p)
+    pub fn sum<I>(&self, summands: I) -> NodeResult<'static>
+        where I: IntoIterator<Item=NodeRc>
+    {
+        try_fold(summands, self.int(0), |a, b| self.add(a, b))
     }
 
     pub fn rational(&self, r: Rational) -> NodeRc {
@@ -173,4 +218,13 @@ impl Builder {
     pub fn intern(&self, node: Node) -> NodeRc {
         self.cache.borrow_mut().intern(node).clone()
     }
+}
+
+fn try_fold<T, I, F, E>(iter: I, mut init: T, func: F) -> Result<T, E>
+    where I: IntoIterator<Item=T>, F: Fn(T, T) -> Result<T, E>
+{
+    for i in iter.into_iter() {
+        init = func(init, i)?;
+    }
+    Ok(init)
 }
