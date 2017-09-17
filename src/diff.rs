@@ -6,33 +6,28 @@ use poly::{Poly, PolyError};
 type DiffError = Error<'static>;
 
 pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc, DiffError> {
-    let out = match **node {
+    match **node {
         Node::Func(f, ref g) => {
             let dg = diff(builder, g, var)?;
             builder.mul(
                 match f {
                     Func::Sin => // d/dx sin(g(x)) = cos(g(x)) g'(x)
-                        builder.func(Func::Cos, g.clone()), 
+                        builder.func(Func::Cos, g.clone())?, 
                     Func::Cos => // d/dx cos(g(x)) = - sin(g(x)) g'(x)
-                        builder.mul(builder.int(-1), builder.func(Func::Sin, g.clone())),
+                        builder.mul(builder.int(-1), builder.func(Func::Sin, g.clone())?)?,
                     Func::Log => // d/dx log(g(x)) = g'(x) / g(x)
                         builder.pow_i(g.clone(), -1)?,
                     Func::Exp => // d/dx exp(g(x)) = exp(g(x)) g'(x)
-                        builder.func(Func::Exp, g.clone()),
+                        builder.func(Func::Exp, g.clone())?,
                 },
                 dg
             )
         },
-        Node::Var(ref s) => builder.int((s == var) as i64),
-        Node::Poly(ref p) => builder.poly(diff_poly(builder, p, var)?),
-        Node::Tuple(ref parts) => {
-            let parts: Result<Vec<_>, _> = parts.iter().map(|p| diff(builder, p, var)).collect();
-            builder.tuple(parts?)
-        },
+        Node::Var(ref s) => Ok(builder.int((s == var) as i64)),
+        Node::Poly(ref p) => Ok(builder.poly(diff_poly(builder, p, var)?)),
+        Node::Tuple(ref parts) => builder.tuple(parts.iter().map(|p| diff(builder, p, var))),
         _ => unimplemented!()
-    };
-
-    Ok(out)
+    }
 }
 
 pub fn diff_poly(builder: &Builder, poly: &Poly, var: &str) -> Result<Poly, DiffError> {

@@ -16,7 +16,8 @@ pub enum Error<'a> {
     ParseError(lalrpop_util::ParseError<usize, (usize, &'a str), ()>),
     IntegerError,
     Poly(PolyError),
-    Undefined(&'a str)
+    Undefined(&'a str),
+    ShapeMismatch(usize, usize),
 }
 impl<'a> fmt::Display for Error<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -29,7 +30,8 @@ impl<'a> fmt::Display for Error<'a> {
             ParseError(ref e) => write!(f, "{:?}", e),
             IntegerError => write!(f, "not an integer"),
             Poly(PolyError::DivZero) => write!(f, "division by zero"),
-            Undefined(name) => write!(f, "'{}' is not defined", name) 
+            Undefined(name) => write!(f, "'{}' is not defined", name),
+            ShapeMismatch(a, b) => writeln!(f, "shapes do not match ({} vs. {})", a, b)
         }       
     }
 }
@@ -81,61 +83,88 @@ impl Builder {
     pub fn poly(&self, p: Poly) -> NodeRc {
         self.intern(Node::Poly(p))
     }
-    
+
+    fn uniform<F>(&self, a: NodeRc, b: NodeRc, f: F) -> NodeResult<'static>
+        where F: Fn(NodeRc, NodeRc) -> NodeResult<'static>
+    {
+        match (&*a, &*b) {
+            (&Node::Tuple(ref ta), &Node::Tuple(ref tb)) => {
+                if ta.len() != tb.len() {
+                    return Err(Error::ShapeMismatch(ta.len(), tb.len()));
+                }
+                self.tuple(
+                    ta.iter().zip(tb.iter()).map(|(a, b)| f(a.clone(), b.clone()))
+                )
+            },
+            (&Node::Tuple(ref ta), _) => self.tuple(ta.iter().map(|a| f(a.clone(), b.clone()))),
+            (_, &Node::Tuple(ref tb)) => self.tuple(tb.iter().map(|a| f(a.clone(), b.clone()))),
+            (_, _) => f(a.clone(), b.clone())
+        }
+    }
+    fn uniform_one<F, T>(&self, a: NodeRc, t: T, f: F) -> NodeResult<'static>
+        where F: Fn(NodeRc, T) -> NodeResult<'static>, T: Clone
+    {
+        match *a {
+            Node::Tuple(ref ta) => self.tuple(ta.iter().map(|a| f(a.clone(), t.clone()))),
+            _ => f(a.clone(), t)
+        }
+    }
     /// a + b
-    pub fn add(&self, a: NodeRc, b: NodeRc) -> NodeRc {
-        self.poly(poly(a) + poly(b))
+    pub fn add(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
+        self.uniform(a, b, |a, b| Ok(self.poly(poly(a) + poly(b))))
     }
 
     /// a - b
-    pub fn sub(&self, a: NodeRc, b: NodeRc) -> NodeRc {
-        self.poly(poly(a) + poly(b) * (-1))
+    pub fn sub(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
+        self.uniform(a, b, |a, b| Ok(self.poly(poly(a) + poly(b) * (-1))))
     }
 
     /// a * b
-    pub fn mul(&self, a: NodeRc, b: NodeRc) -> NodeRc {
-        self.poly(poly(a) * poly(b))
+    pub fn mul(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
+        self.uniform(a, b, |a, b| Ok(self.poly(poly(a) * poly(b))))
     }
 
     /// a / b
     pub fn div(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
-        Ok(self.poly(poly(a) * (poly(b).pow_i(self, -1)?)))
+        self.uniform(a, b, |a, b| Ok(self.poly(poly(a) * (poly(b).pow_i(self, -1)?))))
     }
 
     /// - a
-    pub fn neg(&self, a: NodeRc) -> NodeRc {
+    pub fn neg(&self, a: NodeRc) -> NodeResult<'static> {
         self.mul(self.int(-1), a)
     }
     
     /// a ^ b
     pub fn pow(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
-        if let Node::Poly(ref p) = *b {
-            if let Some(i) = p.as_int().and_then(|i| i.cast()) {          
-                return Ok(self.pow_i(a, i)?);
+        self.uniform(a, b, |a, b| {
+            if let Node::Poly(ref p) = *b {
+                if let Some(i) = p.as_int().and_then(|i| i.cast()) {          
+                    return Ok(self.pow_i(a, i)?);
+                }
             }
-        }
-
-        let g = self.func(Func::Log, a);
-        Ok(self.func(Func::Exp, self.mul(g, b)))
+            
+            let g = self.func(Func::Log, a)?;
+            self.func(Func::Exp, self.mul(g, b)?)
+        })
     }
     /// a ^ i
     pub fn pow_i(&self, a: NodeRc, i: i32) -> NodeResult<'static> {
-        Ok(self.poly(poly(a).pow_i(self, i)?))
+        self.uniform_one(a, i, |a, i| Ok(self.poly(poly(a).pow_i(self, i)?)))
     }
 
     /// f(g)
-    pub fn func(&self, f: Func, g: NodeRc) -> NodeRc {
-        self.intern(Node::Func(f, g))
+    pub fn func(&self, f: Func, g: NodeRc) -> NodeResult<'static> {
+        self.uniform_one(g, f, |g, f| Ok(self.intern(Node::Func(f, g))))
     }
 
-    pub fn op(&self, op: Op) -> NodeResult<'static> {
-        Ok(self.intern(Node::Op(op)))
+    pub fn op(&self, o: Op) -> NodeRc {
+        self.intern(Node::Op(o))
     }
 
     /// f(g) (by name)
     pub fn function<'a>(&self, name: &'a str, arg: NodeRc) -> NodeResult<'a> {
         let f = Func::from_name(name).ok_or(Error::MissingFunction(name))?;
-        Ok(self.func(f, arg))
+        self.func(f, arg)
     }
 
     /// make a name variable
@@ -156,61 +185,69 @@ impl Builder {
             .map(|(var, subst)| (&**var, subst))
             .collect();
 
-        Ok(self.substitute(&def.expr, &map))
+        self.substitute(&def.expr, &map)
     }
 
-    fn substitute(&self, node: &NodeRc, map: &HashMap<&str, NodeRc>) -> NodeRc {
+    fn substitute(&self, node: &NodeRc, map: &HashMap<&str, NodeRc>) -> NodeResult<'static> {
         match **node {
             Node::Var(ref name) => match map.get(&**name) {
-                Some(node) => node.clone(),
-                None => node.clone()
+                Some(node) => Ok(node.clone()),
+                None => Ok(node.clone())
             },
-            Node::Tuple(ref parts) => self.tuple(parts.iter().map(|n| self.substitute(n, map)).collect()),
+            Node::Tuple(ref parts) => self.tuple(parts.iter().map(|n| self.substitute(n, map))),
             Node::Poly(ref p) => self.sum(
                 p.factors().map(|(base, &fac)| {
                     self.product(
-                        once(self.rational(fac))
+                        once(Ok(self.rational(fac)))
                             .chain(
                                 base.iter().map(|&(ref v, p)| self.pow_i(
-                                    self.substitute(v, map),
+                                    self.substitute(v, map)?,
                                     p.cast().expect("too high")
-                                ).unwrap())
+                                ))
                             )
                     )
                 })
             ),
-            Node::Func(f, ref n) => self.func(f, self.substitute(n, map)),
+            Node::Func(f, ref n) => self.func(f, self.substitute(n, map)?),
             _ => unimplemented!()
         }
     }
 
     /// f_0 · f_1 · f_2 · … · f_n
-    pub fn product<I>(&self, factors: I) -> NodeRc where I: IntoIterator<Item=NodeRc> {
-        let mut p = Poly::int(1);
-        for f in factors.into_iter() {
-            p = p * poly(f);
-        }
-        self.poly(p)
+    pub fn product<'a, I>(&self, mut factors: I) -> NodeResult<'a>
+        where I: IntoIterator<Item=NodeResult<'a>>
+    {
+        try_fold(factors, self.int(1), |a, b| self.mul(a, b))
     }
 
     /// f_0 + f_1 + f_2 + … + f_n
-    pub fn sum<I>(&self, summands: I) -> NodeRc where I: IntoIterator<Item=NodeRc> {
-        let mut p = Poly::int(0);
-        for n in summands.into_iter() {
-            p = p + poly(n);
-        }
-        self.poly(p)
+    pub fn sum<'a, I>(&self, summands: I) -> NodeResult<'a>
+        where I: IntoIterator<Item=NodeResult<'a>>
+    {
+        try_fold(summands, self.int(0), |a, b| self.add(a, b))
     }
 
     pub fn rational(&self, r: Rational) -> NodeRc {
         self.poly(Poly::rational(r))
     }
 
-    pub fn tuple(&self, parts: Vec<NodeRc>) -> NodeRc {
-        self.intern(Node::Tuple(parts))
+    pub fn tuple<'a, I>(&self, parts: I) -> NodeResult<'a>
+        where I: IntoIterator<Item=NodeResult<'a>>
+    {
+        let v: Result<Vec<_>, _> = parts.into_iter().collect();
+        Ok(self.intern(Node::Tuple(v?)))
     }
     
     pub fn intern(&self, node: Node) -> NodeRc {
         self.cache.borrow_mut().intern(node).clone()
     }
+}
+
+fn try_fold<T, I, F, E>(iter: I, mut init: T, func: F) -> Result<T, E>
+    where I: IntoIterator<Item=Result<T, E>>, F: Fn(T, T) -> Result<T, E>
+{
+    for i in iter.into_iter() {
+        init = func(init, i?)?;
+    }
+    Ok(init)
 }

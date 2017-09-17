@@ -3,6 +3,7 @@ name = "math"
 version = "0.1.1"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
 build = "build.rs"
+features = ["nvidia"]
 
 [dependencies]
 rand = "*"
@@ -17,6 +18,10 @@ quote = "*"
 petgraph = "*"
 syn = "*"
 memmap = "*"
+cuda = { git="https://github.com/s3bk/cuda.git", optional=true }
+
+[features]
+nvidia = ["cuda"]
 
 [build-dependencies]
 lalrpop = "*"

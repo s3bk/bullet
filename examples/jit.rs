@@ -3,7 +3,7 @@ extern crate simd;
 extern crate tuple;
 
 use math::builder::Builder;
-use math::avx::avx_jit;
+use math::vm::avx::avx_jit;
 use simd::x86::avx::f32x8;
 use tuple::T8;
 

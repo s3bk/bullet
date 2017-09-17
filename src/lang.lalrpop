@@ -4,23 +4,23 @@ use node::Op;
 grammar<'b>(builder: &'b Builder);
 
 pub Expr: NodeResult<'input> = {
-    <l:Expr> "+" <r:Factor> => Ok(builder.add(l?, r?)),
-    <l:Expr> "-" <r:Factor> => Ok(builder.sub(l?, r?)),
-    "-" <f:Factor> => Ok(builder.neg(f?)),
+    <l:Expr> "+" <r:Factor> => builder.add(l?, r?),
+    <l:Expr> "-" <r:Factor> => builder.sub(l?, r?),
+    "-" <f:Factor> => builder.neg(f?),
     Factor,
 };
 
 pub Factor: NodeResult<'input> = {
-    <l:Factor> "*" <r:Pow> => Ok(builder.mul(l?, r?)),
-    <l:Factor> "·" <r:Pow> => Ok(builder.mul(l?, r?)),
+    <l:Factor> "*" <r:Pow> => builder.mul(l?, r?),
+    <l:Factor> "·" <r:Pow> => builder.mul(l?, r?),
     <l:Factor> "/" <r:Pow> => builder.div(l?, r?),
-    <l:r"[0-9]+"> <r:Pow> => Ok(builder.mul(builder.decimal(l)?, r?)),
+    <l:r"[0-9]+"> <r:Pow> => builder.mul(builder.decimal(l)?, r?),
     <l:r"\pL+"> <r:Pow> => builder.apply_named(l, r?),
     Pow,
 };
 
 pub Op: NodeResult<'input> = {
-    <v:r"d/d(\pL+)"> => builder.op(Op::Diff(v[3..].into())),
+    <v:r"d/d(\pL+)"> => Ok(builder.op(Op::Diff(v[3..].into()))),
 };
 
 pub Pow: NodeResult<'input> = {
@@ -28,11 +28,30 @@ pub Pow: NodeResult<'input> = {
     Term
 };
 
+Comma<T>: Vec<T> = {
+    <v:(<T> ",")*> <e:T> => {
+        let mut v = v;
+        v.push(e );
+        v
+    },
+};
+
+pub CommaE = Comma<Expr>;
+pub Tuple: NodeResult<'input> = {
+    "(" <t:CommaE> ")" => {
+        let mut t = t;
+        match t.len() {
+	    1 => t.pop().unwrap(),
+	    _ => builder.tuple(t)
+        }
+    },
+};
+
 pub Term: NodeResult<'input> = {
     Num,
     Var,
     Op,
-    "(" <Expr> ")",
+    Tuple,
 };
 
 Num: NodeResult<'input> = <s:r"[0-9]+"> => builder.decimal(s);
