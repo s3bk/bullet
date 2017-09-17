@@ -1,5 +1,6 @@
-use builder::{Builder, NodeResult};
+use builder::{Builder, NodeResult, Error};
 use node::Op;
+use eval::Command;
 
 grammar<'b>(builder: &'b Builder);
 
@@ -14,8 +15,6 @@ pub Factor: NodeResult<'input> = {
     <l:Factor> "*" <r:Pow> => builder.mul(l?, r?),
     <l:Factor> "·" <r:Pow> => builder.mul(l?, r?),
     <l:Factor> "/" <r:Pow> => builder.div(l?, r?),
-    <l:r"[0-9]+"> <r:Pow> => builder.mul(builder.decimal(l)?, r?),
-    <l:r"\pL+"> <r:Pow> => builder.apply_named(l, r?),
     Pow,
 };
 
@@ -25,6 +24,8 @@ pub Op: NodeResult<'input> = {
 
 pub Pow: NodeResult<'input> = {
     <b:Term> "^" <e:Pow> => builder.pow(b?, e?),
+    <l:Name> <r:Pow> => builder.apply_named(l, r?),
+    <l:r"[0-9]+"> <r:Pow> => builder.mul(builder.decimal(l)?, r?),
     Term
 };
 
@@ -55,4 +56,11 @@ pub Term: NodeResult<'input> = {
 };
 
 Num: NodeResult<'input> = <s:r"[0-9]+"> => builder.decimal(s);
-Var: NodeResult<'input> = <s:r"\pL+"> => Ok(builder.var(s));
+Var: NodeResult<'input> = <s:Name> => Ok(builder.var(s));
+Name: &'input str = r"\pL+";
+
+pub CommaS = Comma<Name>;
+pub Command: Result<Command<'input>, Error<'input>> = {
+    "def" <f:r"\pL+"> "(" <a:CommaS> ")" ":=" <e:Expr> => Ok(Command::Define(f, a, e?)),
+    <e:Expr> => Ok(Command::Expr(e?))
+};

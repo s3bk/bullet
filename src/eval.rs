@@ -1,8 +1,13 @@
-use node::Node;
+use node::{Node, NodeRc};
 use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::error::Error;
 use cast::Cast;
+
+pub enum Command<'a> {
+    Define(&'a str, Vec<&'a str>, NodeRc),
+    Expr(NodeRc)
+}
 
 pub struct EvalContext {
     defines: HashMap<String, f64>

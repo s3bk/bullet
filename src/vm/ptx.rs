@@ -116,7 +116,7 @@ fn test_ptx() {
     use builder::Builder;
     let b = Builder::new();
     let n = b.parse("sin(x^4)^2 + cos(3*x-5)").unwrap();
-    println!("{}ms", 1000. * bench_ptx(&n));
+    println!("{}ms", 1000. * bench_ptx(&n, 1024*1024));
 }
     
 impl Vm for Ptx {

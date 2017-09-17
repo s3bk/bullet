@@ -59,10 +59,25 @@ fn poly(node: NodeRc) -> Poly {
 
 impl Builder {
     pub fn new() -> Builder {
-        Builder {
+        let mut b = Builder {
             cache: RefCell::new(Cache::new()),
             defs:  HashMap::new()
+        };
+        b.init();
+        b
+    }
+    fn init(&mut self) {
+        use self::Func::*;
+        for &(n, f) in [("sin", Sin), ("cos", Cos), ("exp", Exp), ("log", Log)].iter() {
+            let f = self.func(f, self.var("x")).unwrap();
+            self.define(n, vec!["x".into()], f);
         }
+    }
+    pub fn define(&mut self, name: &str, args: Vec<String>, node: NodeRc) {
+        self.defs.insert(name.to_owned(), Definition {
+            args,
+            expr: node
+        });
     }
     pub fn parse<'a>(&self, expr: &'a str) -> NodeResult<'a> {
         match parse_Expr(self, expr) {
@@ -214,7 +229,7 @@ impl Builder {
     }
 
     /// f_0 · f_1 · f_2 · … · f_n
-    pub fn product<'a, I>(&self, mut factors: I) -> NodeResult<'a>
+    pub fn product<'a, I>(&self, factors: I) -> NodeResult<'a>
         where I: IntoIterator<Item=NodeResult<'a>>
     {
         try_fold(factors, self.int(1), |a, b| self.mul(a, b))
