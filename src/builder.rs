@@ -68,14 +68,15 @@ impl Builder {
     }
     fn init(&mut self) {
         use self::Func::*;
+        let x = self.var("x");
         for &(n, f) in [("sin", Sin), ("cos", Cos), ("exp", Exp), ("log", Log)].iter() {
-            let f = self.func(f, self.var("x")).unwrap();
-            self.define(n, vec!["x".into()], f);
+            let f = self.func(f, x.clone()).unwrap();
+            self.define(n, &["x"], f);
         }
     }
-    pub fn define(&mut self, name: &str, args: Vec<String>, node: NodeRc) {
+    pub fn define(&mut self, name: &str, args: &[&str], node: NodeRc) {
         self.defs.insert(name.to_owned(), Definition {
-            args,
+            args: args.iter().map(|&s| s.into()).collect(),
             expr: node
         });
     }
@@ -93,6 +94,13 @@ impl Builder {
     pub fn decimal<'a>(&self, n: &'a str) -> NodeResult<'a> {
         let i: i64 = n.parse().map_err(|_| Error::IntegerError)?;
         Ok(self.int(i))
+    }
+    pub fn decimal_float<'a>(&self, s: &'a str) -> NodeResult<'a> {
+        let dp = s.find('.').unwrap();
+        let div = 10i64.pow((s.len() - dp - 1) as u32);
+        let i: i64 = s[..dp].parse().map_err(|_| Error::IntegerError)?;
+        let j: i64 = s[dp+1..].parse().map_err(|_| Error::IntegerError)?;
+        self.add(self.int(i), self.div(self.int(j), self.int(div))?)
     }
 
     pub fn poly(&self, p: Poly) -> NodeRc {
@@ -191,16 +199,25 @@ impl Builder {
     pub fn apply_named<'a>(&self, left: &'a str, right: NodeRc) -> NodeResult<'a> {
         let def = self.defs.get(left).ok_or(Error::Undefined(left))?;
 
-        let subst = match *right {
-            Node::Tuple(ref parts) => parts.clone(),
-            _ => vec![right.clone()]
+        let map = |args: &[NodeRc]| -> HashMap<&str, NodeRc> {
+            args.iter()
+                .zip(def.args.iter())
+                .map(|(subst, var)| (&**var, subst.clone()))
+                .collect()
         };
-        let map: HashMap<_, _> = def.args.iter()
-            .zip(subst.into_iter())
-            .map(|(var, subst)| (&**var, subst))
-            .collect();
 
-        self.substitute(&def.expr, &map)
+        
+        match *right {
+            Node::Tuple(ref parts) => match def.args.len() {
+                1 => {
+                    self.tuple(parts.windows(1).map(|p| self.substitute(&def.expr, &map(p))))
+                },
+                n if n == parts.len() => self.substitute(&def.expr, &map(parts)),
+                n => Err(Error::ShapeMismatch(n, parts.len()))
+            },
+            _ if def.args.len() == 1 => self.substitute(&def.expr, &map(&[right.clone()])),
+            _ => Err(Error::ShapeMismatch(def.args.len(), 1))
+        }
     }
 
     fn substitute(&self, node: &NodeRc, map: &HashMap<&str, NodeRc>) -> NodeResult<'static> {

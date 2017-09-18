@@ -50,12 +50,14 @@ pub Tuple: NodeResult<'input> = {
 
 pub Term: NodeResult<'input> = {
     Num,
+    NumFloat,
     Var,
     Op,
     Tuple,
 };
 
 Num: NodeResult<'input> = <s:r"[0-9]+"> => builder.decimal(s);
+NumFloat: NodeResult<'input> = <s:r"[0-9]+\.[0-9]+"> => builder.decimal_float(s);
 Var: NodeResult<'input> = <s:Name> => Ok(builder.var(s));
 Name: &'input str = r"\pL+";
 

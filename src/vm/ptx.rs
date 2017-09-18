@@ -13,8 +13,8 @@ macro_rules! line {
     ($selv:ident, $instr:expr, out, $($arg:expr),*) => (
         {
             let out = $selv.alloc();
-            let mut instr = format!("\t{}\t{}", $instr, out);
-            $( write!(instr, ",\t{}", $arg).unwrap(); )*
+            let mut instr = format!("    {:19} {}", $instr, out);
+            $( write!(instr, ", {}", $arg).unwrap(); )*
             write!(instr, ";").unwrap();
             $selv.push(instr);
             out
@@ -50,29 +50,31 @@ impl Ptx {
 .version 3.0
 .target sm_30
 
-.entry main(.param .u64 dst) {{
-       .reg.b64    data;
-       .reg.u64	   n, m, o;
-       .reg.u32	   a, b, c, d;
-       .reg.f32    _r<{num_regs}>;
+.entry main(.param.b64 src, .param.u64 dst) {{
+    .reg.u64            data_in, data_out;
+    .reg.u64	        n, m, o;
+    .reg.u32	        a, b, c, d;
+    .reg.f32            _r<{num_regs}>;
 
-       ld.param.u64  data, [dst];
-       mov.u32       a,      %ctaid.x;
-       mov.u32       b,      %ntid.x;
-       mov.u32       c,      %tid.x;
-       mov.u32       d,      {data_size};		// sizeof(f32)*num_sources
-       mul.wide.u32  n,      a, b;
-       mul.wide.u32  m,      c, d;
-       add.u64       n,      m, n;
-       add.u64       data,   data, n;
+    ld.param.u64        data_in,    [src];
+    ld.param.u64        data_out,   [dst];
+    mov.u32             a,          %ctaid.x;
+    mov.u32             b,          %ntid.x;
+    mov.u32             c,          %tid.x;
+    mov.u32             d,          {data_size};		// sizeof(f32)*num_sources
+    mul.wide.u32        n,          a, b;
+    mul.wide.u32        m,          c, d;
+    add.u64             n,          m, n;
+    add.u64             data_in,    data_in, n;
+    add.u64             data_out,   data_out, n;
 
 // generated code
 {code}
 
 // end of generated code
-       st.cs.f32        [data], {out};
+    st.cs.f32           [data_out], {out};
 
-       ret;
+    ret;
 }}",
                 code=self.lines.join("\n"),
                 num_regs=self.num_regs,
@@ -93,21 +95,28 @@ impl Ptx {
     }
 }
 
-pub fn bench_ptx(n: &NodeRc, count: usize) -> f64{
+pub fn bench_ptx(n: &NodeRc, count: usize) -> f64 {
     use std::time::Instant;
-    use cuda::Device;
+    use cuda::{Buffer, Device};
 
     let dev = Device::get(0).expect("failed to init");
     let ctx = dev.create_context().unwrap();
     let m = Ptx::compile(&n, &ctx);
 
-    let mut data = vec![0f32; count];
+    let mut data_in = Buffer::with_capacity(count).unwrap();
+    let mut data_out = Buffer::with_capacity(count).unwrap();
+    for _ in 0 .. count {
+        data_in.push(0f32);
+    }
+    data_out.push(-1.0);
     let f = m.get("main").expect("could not get kernel adress");
     let t0 = Instant::now();
     unsafe {
-        f.launch_simple(&mut data).expect("failed to launch kernel");
+        f.launch_simple(&data_in, &mut data_out).expect("failed to launch kernel");
     }
     let dt = t0.elapsed();
+
+    println!("{} ... {}", data_out[0], data_out[count-1]);
     dt.as_secs() as f64 + dt.subsec_nanos() as f64 * 1e-9
 }
 
@@ -130,7 +139,7 @@ impl Vm for Ptx {
         self.inputs.push(name.to_owned());
         
         let reg = self.alloc();
-        self.push(format!("\tld.cs.f32\t{}, [data+{}];", reg, off));
+        self.push(format!("    ld.cs.f32           {}, [data_in+{}];", reg, off));
         reg
     }
     fn store(&mut self, var: &mut Self::Var, _uses: usize) -> Self::Storage {
