@@ -120,7 +120,7 @@ impl Builder {
                 )
             },
             (&Node::Tuple(ref ta), _) => self.tuple(ta.iter().map(|a| f(a.clone(), b.clone()))),
-            (_, &Node::Tuple(ref tb)) => self.tuple(tb.iter().map(|a| f(a.clone(), b.clone()))),
+            (_, &Node::Tuple(ref tb)) => self.tuple(tb.iter().map(|b| f(a.clone(), b.clone()))),
             (_, _) => f(a.clone(), b.clone())
         }
     }
@@ -149,7 +149,7 @@ impl Builder {
 
     /// a / b
     pub fn div(&self, a: NodeRc, b: NodeRc) -> NodeResult<'static> {
-        self.uniform(a, b, |a, b| Ok(self.poly(poly(a) * (poly(b).pow_i(self, -1)?))))
+        self.uniform(a, b, |a, b| Ok(self.poly(poly(a) * poly(b).pow_i(self, -1)?)))
     }
 
     /// - a
