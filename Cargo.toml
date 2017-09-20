@@ -6,7 +6,6 @@ build = "build.rs"
 features = ["nvidia"]
 
 [dependencies]
-rand = "*"
 tuple = { version = "0.3", features = ["impl_simd"], git="https://github.com/s3bk/tuple.git" }
 num = "*"
 simd = "*"
@@ -15,10 +14,10 @@ regex = "*"
 env_logger = "*"
 itertools = "*"
 quote = "*"
-petgraph = "*"
 syn = "*"
 memmap = "*"
 cuda = { git="https://github.com/s3bk/cuda.git", optional=true }
+math_traits = "*"
 
 [features]
 nvidia = ["cuda"]
