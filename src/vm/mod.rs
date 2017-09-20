@@ -1,5 +1,5 @@
+use prelude::*;
 use consts::trig_poly;
-use real::Real;
 use std::fmt::Debug;
 use itertools::Itertools;
 

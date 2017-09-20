@@ -81,7 +81,7 @@ impl Vm for Syn {
 
 pub fn syn(node: NodeRc) -> Tokens {
     let mut syn = Syn::new();
-    let inner = Compiler::run(&mut syn, &node);
+    let inner = Compiler::run(&mut syn, &node).unwrap();
     let store = syn.tokens;
     let out = quote! {
         {

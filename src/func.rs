@@ -1,41 +1,40 @@
 use std::fmt;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub enum Func {
+pub enum Transient {
     Sin,
     Cos,
     Log,
     Exp
 }
+use self::Transient::*;
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub enum Func {
+    Transient(Transient),
+    Diff(String),
+}
 use self::Func::*;
+
+impl From<Transient> for Func {
+    fn from(t: Transient) -> Func {
+        Func::Transient(t)
+    }
+}
 
 impl fmt::Display for Func {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = match *self {
-            Sin => "sin",
-            Cos => "cos",
-            Log => "log",
-            Exp => "exp"
-        };
-        f.write_str(s)
-    }
-}
-impl Func {
-    pub fn eval_f64(self, x: f64) -> f64 {
-        match self {
-            Sin => x.sin(),
-            Cos => x.cos(),
-            Log => x.ln(),
-            Exp => x.exp()
+        match *self {
+            Transient(t) => {
+                let name = match t {
+                    Sin => "sin",
+                    Cos => "cos",
+                    Log => "log",
+                    Exp => "exp"
+                };
+                f.write_str(name)
+            },
+            Diff(ref var) => write!(f, "d/d{}", var)
         }
-    }
-    pub fn from_name(name: &str) -> Option<Func> {
-        Some(match name {
-            "sin" => Sin,
-            "cos" => Cos,
-            "log" => Log,
-            "exp" => Exp,
-            _ => return None
-        })
     }
 }

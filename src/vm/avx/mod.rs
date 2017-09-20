@@ -3,7 +3,6 @@ use compiler::Compiler;
 use vm::{Vm, Round, Cmp};
 use node::NodeRc;
 use quote::{Tokens, Ident};
-use tuple::{TupleElements, Map};
 
 mod jit;
 
@@ -196,19 +195,18 @@ impl Vm for AvxAsm {
     }
 }
 
-pub fn avx_asm<'a, N, V>(nodes: N, vars: V) -> Tokens
-    where N: TupleElements<Element=&'a NodeRc> + Map<Source>,
-          V: TupleElements<Element=&'a str>
+pub fn avx_asm(nodes: &[NodeRc], vars: &[&str]) -> Tokens
 { 
     let mut asm = AvxAsm::new();
 
     let mut def_out = vec![]; // defines
     let mut reg_out = vec![]; // registers
-    let mut args = vec![]; // the names
 
-    Compiler::compile(&mut asm, nodes, vars, |_, r| {
-        let v: Ident = format!("out_{}", args.len()).into();
-        def_out.push(match r {
+    let outputs = Compiler::compile(&mut asm, nodes, vars).expect("failed to compile");
+    let args: Vec<Tokens> = outputs.iter().enumerate().map(|(i, &source)| {
+        let v: Ident = format!("out_{}", i).into();
+        def_out.push(v.clone());
+        match source {
             Source::Reg(r) => {
                 let reg = format!("={{{}}}", r);
                 reg_out.push(quote!{ #reg(#v) });
@@ -222,9 +220,8 @@ pub fn avx_asm<'a, N, V>(nodes: N, vars: V) -> Tokens
                 let n = idx as usize / 32;
                 quote!{ let #v: f32x8 = CONSTANTS[#n]; }
             }
-        });
-        args.push(v);
-    });
+        }
+    }).collect();
 
     let mut lines = String::new();
     for instr in asm.instr {

@@ -77,7 +77,7 @@ impl Tokens {
             for &(ref v, n) in base.iter() {
                 let v = match **v {
                     Node::Poly(ref p) => wrap_poly(p),
-                    ref n => Tokens::node(n).to_string()
+                    ref n => Tokens::node(n, false).to_string()
                 };
                 if n == 1 {
                     tokens.push(v);
@@ -99,11 +99,11 @@ impl Tokens {
         }
         tokens
     }
-    pub fn node(n: &Node) -> Tokens {
+    pub fn node(n: &Node, wrap: bool) -> Tokens {
         let mut tokens = Tokens::new();
         match *n {
-            Node::Func(f, ref g) => {
-                tokens.push(format!("{}({})", f, Tokens::node(g)));
+            Node::Func(ref f, ref g) => {
+                tokens.push(format!("{} {}", f, Tokens::node(g, true)));
             },
             Node::Poly(ref p) => {
                 match p.factorize() {
@@ -111,12 +111,17 @@ impl Tokens {
                         tokens.push(wrap_poly(&p));
                         tokens.push(wrap_poly(&q));
                     },
-                    None => tokens.push(Tokens::poly(p)),
+                    None => {
+                        if wrap {
+                            tokens.push(wrap_poly(p));
+                        } else {
+                            tokens.push(Tokens::poly(p));
+                        }
+                    }
                 }
             }
             Node::Var(ref name) => tokens.push(name),
-            Node::Tuple(ref parts) => tokens.push(format!("({})", parts.iter().map(|n| Tokens::node(n)).join(", "))),
-            Node::Op(ref o) => tokens.push(o.to_string())
+            Node::Tuple(ref parts) => tokens.push(format!("({})", parts.iter().map(|n| Tokens::node(n, false)).join(", "))),
         }
         tokens
     }

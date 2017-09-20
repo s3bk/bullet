@@ -1,7 +1,7 @@
+use prelude::*;
 use std::collections::hash_map::{HashMap, Entry};
 use node::{NodeRc, Node};
-use func::Func;
-use tuple::{TupleElements, Map};
+use func::{Func, Transient};
 use vm::Vm;
 
 pub struct Compiler<'a, V: Vm + 'a> {
@@ -26,7 +26,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                         },
                         Node::Func(_, ref g) => queue.push(g),
                         Node::Var(ref name) => vars.push(name.as_str()),
-                        _ => unimplemented!()
+                        Node::Tuple(ref parts) => queue.extend(parts.iter().map(|n| &**n))
                     }
                 },
                 Entry::Occupied(mut o) => *o.get_mut() += 1
@@ -44,7 +44,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
         }
     }
 
-    pub fn run(vm: &'a mut V, root: &'a Node) -> V::Var {
+    pub fn run(vm: &'a mut V, root: &'a Node) -> Result<V::Var> {
         let mut comp = Compiler::new(vm);
         let mut vars = comp.visit(root);
         vars.sort();
@@ -58,18 +58,16 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
     }
 
     /// f is called for every node
-    pub fn compile<T, U, F>(vm: &mut V, nodes: T, vars: U, mut f: F)
-        where T: TupleElements<Element=&'a NodeRc> + Map<V::Var>, U: TupleElements<Element=&'a str>,
-              F: FnMut(&mut V, V::Var)
+    pub fn compile(vm: &mut V, nodes: &[NodeRc], vars: &[&str]) -> Result<Vec<V::Var>>
     {
         let mut comp = Compiler::new(vm);
         
         // walk all nodes
-        for n in nodes.elements() {
+        for n in nodes.iter() {
             comp.visit(&**n);
         }
         
-        for name in vars.into_elements() {
+        for &name in vars.iter() {
             let var = comp.vm.make_source(name);
 	    println!("source {} @ {:?}", name, var);
             comp.sources.insert(name, var);
@@ -79,23 +77,25 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
             println!("{}: {}", u, n);
         }
         // build it
-        for n in nodes.into_elements() {
-            let var = comp.generate(&**n);
-            f(&mut comp.vm, var);
+        let mut vars = Vec::with_capacity(nodes.len());
+        for n in nodes.iter() {
+            vars.push(comp.generate(&**n)?);
         }
+        Ok(vars)
     }
     
-    fn generate(&mut self, node: &'a Node) -> V::Var {
+    fn generate(&mut self, node: &'a Node) -> Result<V::Var> {
         if let Some(stored) = self.storage.get(node) {
-            return self.vm.load(stored); // already computed
+            return Ok(self.vm.load(stored)); // already computed
         }
         println!("{}", node);
         let mut var = match *node {
             Node::Poly(ref poly) => {
                 if let Some(i) = poly.as_int() {
-                    return self.vm.make_int(i);
+                    return Ok(self.vm.make_int(i));
                 }
-                let mut sum: Vec<_> = poly.factors().map(|(base, &fac)| {
+                let mut sum = Vec::new();
+                for (base, &fac) in poly.factors() {
                     // multible cases here..
                     let fac = match fac.as_int() {
                         Some(1) => None,
@@ -106,28 +106,29 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                     let base = match base.len() {
                         0 => None,
                         _ => {
-                            let prod = base.iter().map(|&(ref v, n)| {
-                                let v = self.generate(v);
-                                match n {
-                                    0 => panic!("power of 0"),
+                            let mut prod = Vec::with_capacity(base.len());
+                            for &(ref v, n) in base.iter() {
+                                let v = self.generate(v)?;
+                                prod.push(match n {
+                                    0 => continue, // skip it
                                     1 => v,
                                     i if i > 0 => self.vm.pow_n(v, i as u32),
                                     i => {
                                         let p = self.vm.pow_n(v, -i as u32);
                                         self.vm.inv(p)
                                     }
-                                }
-                            }).collect();
+                                });
+                            }
                             Some(self.vm.make_product(prod))
                         }
                     };   
-                    match (fac, base) {
+                    sum.push(match (fac, base) {
                         (None, None) => self.vm.make_int(1),
                         (Some(f), None) => f,
                         (None, Some(b)) => b,
                         (Some(f), Some(b)) => self.vm.mul(f, b)
-                    }
-                }).collect();
+                    });
+                }
 
                 match sum.len() {
                     0 => self.vm.make_int(0),
@@ -137,18 +138,19 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
             },
             Node::Var(ref name) => {
 	        println!("use {}", name);
-	        self.sources.remove(name.as_str()).expect("source was already used")
+	        self.sources.remove(name.as_str()).ok_or(Error::Undefined(name.clone()))?
 	    },
-            Node::Func(f, ref g) => {
-                let x = self.generate(g);
+            Node::Func(Func::Transient(f), ref g) => {
+                use self::Transient::*;
+                let x = self.generate(g)?;
                 match f {
-                    Func::Sin => self.vm.sin(x),
-                    Func::Cos => self.vm.cos(x),
-                    _ => unimplemented!()
+                    Sin => self.vm.sin(x),
+                    Cos => self.vm.cos(x),
+                    _ => todo!("implement all functions for avx")
                 }
             },
-            _ => unimplemented!()
-
+            Node::Func(Func::Diff(_), _) => todo!("numerical differential"),
+            Node::Tuple(_) => todo!("implement tuples")
         };
         println!("{} uses for {} (stored in {:?})", self.uses[node], node, var);
         match self.uses[node] {
@@ -158,6 +160,6 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                 self.storage.insert(node, self.vm.store(&mut var, n-1));
             }
         }
-        var
+        Ok(var)
     }
 }

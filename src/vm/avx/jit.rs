@@ -1,115 +1,66 @@
+use prelude::*;
 use simd::x86::avx::f32x8;
-use tuple::{Map, TupleElements};
 use super::{AvxAsm, Source, Instr};
 use compiler::Compiler;
 use vm::{Round, Cmp};
-use std::marker::PhantomData;
-use node::NodeRc;
 use super::x86_64::{Writer, op, Mode, Reg};
 use memmap::{Mmap, Protection};
 use vm::avx;
 
 
-pub struct Code<V> {
+pub struct Code {
     consts: Vec<f32x8>,
     code: Mmap,
-    num_vars: usize,
-    _m: PhantomData<V>
+    pub num_inputs: usize,
+    pub num_outputs: usize,
 }
-macro_rules! A { ($A:ty, $B:tt) => ($A) }
-macro_rules! impl_call {
-    ($($name:ident : $reg:tt),*) => (
-        impl Code<($(A!(f32x8, $name),)*)> {
-            #[inline(always)]
-            pub fn call(&self, v: &[f32x8]) -> ($(A!(f32x8, $name),)*) {
-                assert_eq!(v.len(), self.num_vars);
-                $( let $name; )*
-                unsafe { asm!{
-                    "call rax"
-                  : $( $reg ($name) ),*
-                  : "{rdi}"(self.consts.as_ptr()),
-                    "{rdx}"(v.as_ptr()),
-                    "{rax}"(self.code.ptr())
-                  :
-                  : "intel"
-                  : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}",
-                    "{ymm8}", "{ymm9}", "{ymm10}", "{ymm11}", "{ymm12}", "{ymm13}", "{ymm14}", "{ymm15}"
-                } }
-                ( $($name,)* )
-            }
-            #[inline(always)]
-            pub fn bench(&self, v: &[f32x8], n: usize) -> ($(A!(f32x8, $name),)*) {
-                assert_eq!(v.len(), self.num_vars);
-                $( let $name; )*
-                unsafe { asm!{ "
-1:  call rax
-    loop 1b
-"
-                  : $( $reg ($name) ),*
-                  : "{rdi}"(self.consts.as_ptr()),
-                    "{rdx}"(v.as_ptr()),
-                    "{rax}"(self.code.ptr()),
-                    "{rcx}"(n)
-                  :
-                  : "intel"
-                  : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}",
-                    "{ymm8}", "{ymm9}", "{ymm10}", "{ymm11}", "{ymm12}", "{ymm13}", "{ymm14}", "{ymm15}"
-                } }
-                ( $($name,)* )
-            }
-        }
-    )
+impl Code {
+    #[inline(always)]
+    pub fn call(&self, inputs: &[f32x8], outputs: &mut [f32x8]) {
+        assert_eq!(self.num_inputs, inputs.len());
+        assert_eq!(self.num_outputs, outputs.len());
+        
+        unsafe { asm!{
+            "call rax"
+          : // no outputs
+          : "{rdi}"(self.consts.as_ptr()),
+            "{rdx}"(inputs.as_ptr()),
+            "{rbx}"(outputs.as_mut_ptr()),
+            "{rax}"(self.code.ptr())
+          :
+          : "intel"
+          : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}",
+            "{ymm8}", "{ymm9}", "{ymm10}", "{ymm11}", "{ymm12}", "{ymm13}", "{ymm14}", "{ymm15}"
+        } }
+    }
+    
+    #[inline(always)]
+    pub fn bench(&self, inputs: &[f32x8], outputs: &mut [f32x8], n: usize) {
+        assert_eq!(self.num_inputs, inputs.len());
+        assert_eq!(self.num_outputs, outputs.len());
+        
+        unsafe { asm!{
+            "1: call rax\n loop 1b"
+          : // no outputs
+          : "{rdi}"(self.consts.as_ptr()),
+            "{rdx}"(inputs.as_ptr()),
+            "{rbx}"(outputs.as_mut_ptr()),
+            "{rax}"(self.code.ptr()),
+            "{rcx}"(n)
+          :
+          : "intel"
+          : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}",
+            "{ymm8}", "{ymm9}", "{ymm10}", "{ymm11}", "{ymm12}", "{ymm13}", "{ymm14}", "{ymm15}"
+        } }
+    }
 }
-impl_call!(r0: "={ymm0}");
-impl_call!(r0: "={ymm0}", r1: "={ymm1}");
-impl_call!(r0: "={ymm0}", r1: "={ymm1}", r2: "={ymm2}");
-impl_call!(r0: "={ymm0}", r1: "={ymm1}", r2: "={ymm2}", r3: "={ymm3}");
 
-
-pub fn avx_jit<'a, F, V, R>(nodes: F, vars: V) -> Code<<R as Map<f32x8>>::Output>
-    where V: TupleElements<Element=&'a str>,
-          R: TupleElements<Element=Source> + Map<f32x8> + ::std::fmt::Debug,
-          F: TupleElements<Element=&'a NodeRc> + Map<Source, Output=R>
+pub fn avx_jit(nodes: &[NodeRc], vars: &[&str]) -> Result<Code>
 {
     let mut asm = AvxAsm::new();
-    let mut num_results = 0;
-    let mut renames = [0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; // virtual reg -> ymm reg
-    Compiler::compile(&mut asm, nodes, vars, |asm, r| {
-        // this runs for every result
-        let r = match r {
-            Source::Reg(r) => r,
-            s => {
-                let r = asm.alloc();
-                asm.push(Instr::Load(r, s)); // write the source to the output register
-                r
-            }
-        };
-        //        n r         pos n, r
-        // 0 1 2  0:2  0//2  [0][2]
-        // 2 1 0  1:0  2//1  [0][1]
-        // 1 2 0  2:1        [1][1]
-        
-        // 2 0 1  2 -> 0
-        // 0 2 1  2 -> 1
-        // 0 1 2
+    let outputs = Compiler::compile(&mut asm, nodes, vars)?;
 
-        // 0 2 1  0 -> 0
-        // 0 2 1  2 -> 1
-        // 0 1 2
-        if renames[r.0 as usize] != num_results as u8 {
-            let pos_n = renames.iter().position(|&n| n == num_results as u8).unwrap();
-            renames.swap(pos_n, r.0 as usize);
-        }
-        
-        num_results += 1;
-    });
-    assert_eq!(num_results, F::N);
-
-    // constant expressions will not allocate registers
-    for i in 0 .. 16 {
-        println!("{:2} -> {:2}", i, renames[i]);
-    }
-    let reg = |r: avx::Reg| renames[r.0 as usize];
+    let reg = |r: avx::Reg| r.0;
     let mode = |s: Source| match s {
         Source::Reg(r) => Mode::Direct(reg(r)),
         Source::Const(idx) => Mode::Memory(Reg::RDI, idx as i32 * 32),
@@ -140,14 +91,27 @@ pub fn avx_jit<'a, F, V, R>(nodes: F, vars: V) -> Code<<R as Map<f32x8>>::Output
             Instr::MaskMove(r0, r1, s) => writer.vex(op::MASKREAD, reg(r0), reg(r1), mode(s), None)
         }
     }
+    for (i, &r) in outputs.iter().enumerate() {
+        let r = match r {
+            Source::Reg(r) => r,
+            s => {
+                let r = asm.alloc();
+                asm.push(Instr::Load(r, s)); // write the source to the output register
+                r
+            }
+        };
+
+        writer.vex(op::WRITE, reg(r), 0, Mode::Memory(Reg::RBX, i as i32 * 32), None);
+        asm.drop(r);
+    }
+    
     println!("{:?}", asm.registers);
     let code = writer.finish();
-    
-    {
+    /*{
         use std::fs::File;
         use std::io::Write;
         File::create("/tmp/out").unwrap().write_all(&code).unwrap();
-    }
+    }*/
 
     let mut anon_mmap = Mmap::anonymous(4096, Protection::ReadWrite).unwrap();
     unsafe {
@@ -155,10 +119,10 @@ pub fn avx_jit<'a, F, V, R>(nodes: F, vars: V) -> Code<<R as Map<f32x8>>::Output
     }
     anon_mmap.set_protection(Protection::ReadExecute).unwrap();
     
-    Code {
+    Ok(Code {
         code: anon_mmap,
         consts: asm.consts.iter().map(|&c| f32x8::splat(c)).collect(),
-        num_vars: V::N,
-        _m: PhantomData
-    }
+        num_inputs: asm.inputs.len(),
+        num_outputs: outputs.len()
+    })
 }

@@ -1,31 +1,31 @@
-use builder::{Builder, NodeResult, Error};
-use node::Op;
+use error::Error;
+use builder::{Builder, NodeResult};
 use eval::Command;
+use func::Func;
 
 grammar<'b>(builder: &'b Builder);
 
-pub Expr: NodeResult<'input> = {
+pub Expr: NodeResult = {
     <l:Expr> "+" <r:Factor> => builder.add(l?, r?),
     <l:Expr> "-" <r:Factor> => builder.sub(l?, r?),
     "-" <f:Factor> => builder.neg(f?),
     Factor,
 };
 
-pub Factor: NodeResult<'input> = {
+pub Factor: NodeResult = {
     <l:Factor> "*" <r:Pow> => builder.mul(l?, r?),
     <l:Factor> "·" <r:Pow> => builder.mul(l?, r?),
     <l:Factor> "/" <r:Pow> => builder.div(l?, r?),
     Pow,
 };
 
-pub Op: NodeResult<'input> = {
-    <v:r"d/d(\pL+)"> => Ok(builder.op(Op::Diff(v[3..].into()))),
+pub Op: Func = {
+    <v:r"d/d(\pL+)"> => Func::Diff(v[3..].into()),
 };
 
-pub Pow: NodeResult<'input> = {
+pub Pow: NodeResult = {
     <b:Term> "^" <e:Pow> => builder.pow(b?, e?),
-    <l:Name> <r:Pow> => builder.apply_named(l, r?),
-    <l:r"[0-9]+"> <r:Pow> => builder.mul(builder.decimal(l)?, r?),
+    <l:Term> <r:Pow> => builder.apply(l?, r?),
     Term
 };
 
@@ -38,7 +38,7 @@ Comma<T>: Vec<T> = {
 };
 
 pub CommaE = Comma<Expr>;
-pub Tuple: NodeResult<'input> = {
+pub Tuple: NodeResult = {
     "(" <t:CommaE> ")" => {
         let mut t = t;
         match t.len() {
@@ -48,21 +48,27 @@ pub Tuple: NodeResult<'input> = {
     },
 };
 
-pub Term: NodeResult<'input> = {
+pub Array: NodeResult = {
+    "[" <t:CommaE> "]" => builder.array(t),
+};
+
+pub Term: NodeResult = {
     Num,
     NumFloat,
     Var,
-    Op,
     Tuple,
+    Array,
 };
 
-Num: NodeResult<'input> = <s:r"[0-9]+"> => builder.decimal(s);
-NumFloat: NodeResult<'input> = <s:r"[0-9]+\.[0-9]+"> => builder.decimal_float(s);
-Var: NodeResult<'input> = <s:Name> => Ok(builder.var(s));
+Num: NodeResult = <s:r"[0-9]+"> => builder.decimal(s);
+NumFloat: NodeResult = <s:r"[0-9]+\.[0-9]+"> => builder.decimal_float(s);
+Var: NodeResult = <s:Name> => Ok(builder.var(s));
 Name: &'input str = r"\pL+";
 
 pub CommaS = Comma<Name>;
-pub Command: Result<Command<'input>, Error<'input>> = {
+pub Command: Result<Command<'input>, Error> = {
     "def" <f:r"\pL+"> "(" <a:CommaS> ")" ":=" <e:Expr> => Ok(Command::Define(f, a, e?)),
-    <e:Expr> => Ok(Command::Expr(e?))
+    "eval" <e:Expr> => Ok(Command::Eval(e?)),
+    "bench" <e:Expr> => Ok(Command::Bench(e?)),
+    <e:Expr> => Ok(Command::Expr(e?)),
 };

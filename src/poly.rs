@@ -1,4 +1,4 @@
-use node::{Node, NodeRc};
+use prelude::*;
 use rational::Rational;
 use std::iter::once;
 use std::collections::hash_map::{HashMap, Entry, Iter};
@@ -6,8 +6,6 @@ use std::ops::{Add, Mul, MulAssign};
 use std::cmp::{min, max, PartialEq, Eq, PartialOrd, Ord, Ordering};
 use std::hash::{Hash, Hasher};
 use std::fmt;
-use itertools::Itertools;
-use builder::Builder;
 
 pub type Base = Vec<(NodeRc, i64)>;
 #[derive(Debug, Clone)]
@@ -65,13 +63,13 @@ impl Poly {
                 
         Poly::one(vec![(node, 1)], 1.into())
     }
-    pub fn pow_i(self, builder: &Builder, i: i32) -> Result<Poly, PolyError> {
+    pub fn pow_i(self, builder: &Builder, i: i32) -> Result<Poly> {
         if i == 0 {
             return Ok(Poly::int(1));
         }
         if let Some(r) = self.as_rational() {
             if r.is_zero() && i < 0 {
-                return Err(PolyError::DivZero);
+                return Err(PolyError::DivZero.into());
             } else {
                 return Ok(Poly::rational(r.pow(i)));
             }

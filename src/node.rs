@@ -63,7 +63,7 @@ pub enum Sign {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub enum Op {
-    Diff(String)
+    Diff(String),
 }
 impl fmt::Display for Op {
     fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
@@ -78,13 +78,12 @@ pub enum Node {
     Var(String),
     Func(Func, NodeRc),
     Poly(Poly),
-    Tuple(Vec<NodeRc>),
-    Op(Op)
+    Tuple(Vec<NodeRc>)
 }
 
 impl fmt::Display for Node {
     fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
         use display::Tokens;
-        Tokens::node(self).fmt(w)
+        Tokens::node(self, false).fmt(w)
     }
 }

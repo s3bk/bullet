@@ -4,14 +4,12 @@ use node::NodeRc;
 use std::mem;
 
 struct Glsl {
-    shader: String,
     decl: String,
     stored: usize,
 }
 impl Glsl {
     pub fn new() -> Glsl {
         Glsl {
-            shader: String::new(),
             decl: String::new(),
             stored: 0,
         }
@@ -79,7 +77,7 @@ impl Vm for Glsl {
 /// Returns (vert shader, frag shader)
 pub fn glsl(input: NodeRc) -> (String, String) {
     let mut glsl = Glsl::new();
-    let shader_code = Compiler::run(&mut glsl, &input);
+    let shader_code = Compiler::run(&mut glsl, &input).unwrap();
 
     let vert = "\
 #version 330
