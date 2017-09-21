@@ -4,9 +4,10 @@ version = "0.1.0"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
 license = "MIT"
 description = "Proc-Macros using Bullet (see crate bullet)"
+homepage = "https://github.com/s3bk/bullet"
 
 [dependencies]
-simd = "*"
+simd = "0.2.0"
 
 [dependencies.bullet_core]
 path = "../core"
