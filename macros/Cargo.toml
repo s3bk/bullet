@@ -2,6 +2,8 @@
 name = "bullet_macros"
 version = "0.1.0"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
+license = "MIT"
+description = "Proc-Macros using Bullet (see crate bullet)"
 
 [dependencies]
 simd = "*"
