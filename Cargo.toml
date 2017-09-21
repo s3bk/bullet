@@ -8,6 +8,7 @@ license = "MIT"
 repository = "https://github.com/s3bk/bullet"
 homepage = "https://github.com/s3bk/bullet"
 categories = ["Science"]
+description = "Supersonic Math"
 
 [dependencies]
 bullet_core   = { version = "0.1.0", path = "core" }
