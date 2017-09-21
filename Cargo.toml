@@ -16,7 +16,7 @@ itertools = "*"
 quote = "*"
 syn = "*"
 memmap = "*"
-cuda = { path="cuda", optional=true }
+cuda = { version = "0.1", path="cuda", optional=true }
 math_traits = "*"
 
 [features]
