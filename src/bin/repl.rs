@@ -1,7 +1,7 @@
-extern crate math;
+extern crate bullet;
 
 use std::io::{stdin, BufRead};
-use math::eval::EvalContext;
+use bullet::eval::EvalContext;
 
 fn main() {
     let mut ctx = EvalContext::new();

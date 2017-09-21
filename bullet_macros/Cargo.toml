@@ -1,10 +1,10 @@
 [package]
-name = "math_macros"
+name = "bullet_macros"
 version = "0.1.0"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
 
 [dependencies]
-math = { path = ".." }
+bullet = { path = ".." }
 simd = "*"
 
 [lib]

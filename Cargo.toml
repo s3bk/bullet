@@ -1,12 +1,12 @@
 [package]
-name = "math"
-version = "0.1.1"
+name = "bullet"
+version = "0.0.9"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
 build = "build.rs"
 features = ["nvidia"]
 
 [dependencies]
-tuple = { version = "0.3", features = ["impl_simd"], git="https://github.com/s3bk/tuple.git" }
+tuple = { version = "0.3", features = ["impl_simd"] }
 num = "*"
 simd = "*"
 lalrpop-util = "*"
@@ -16,7 +16,7 @@ itertools = "*"
 quote = "*"
 syn = "*"
 memmap = "*"
-cuda = { git="https://github.com/s3bk/cuda.git", optional=true }
+cuda = { path="cuda", optional=true }
 math_traits = "*"
 
 [features]
@@ -32,4 +32,4 @@ termion = "*"
 hiirc = "*"
 
 [workspace]
-members = ["math_macros"]
+members = ["bullet_macros", "cuda"]
