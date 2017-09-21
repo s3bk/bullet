@@ -1,11 +1,8 @@
-#![feature(asm, cfg_target_feature)]
+#![feature(asm, cfg_target_feature, unique, try_trait)]
 #![feature(proc_macro)]
 
 extern crate bullet_core;
 extern crate bullet_macros;
-
-#[cfg(feature="nvidia")]
-extern crate cuda;
 
 #[cfg(feature="jit")]
 extern crate memmap;

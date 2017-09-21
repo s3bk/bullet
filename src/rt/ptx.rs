@@ -1,8 +1,9 @@
 use prelude::*;
 use vm::*;
-
-use cuda::{Context, Module, CudaError};
+use std::time::Instant;
+use rt::cuda::{Buffer, Device, Context, Module, CudaError};
 use std::fmt::Write;
+use compiler::Compiler;
 
 struct Ptx {
     num_regs: usize, /// we do SSA here, the ptx jit will do the rest
@@ -89,7 +90,6 @@ impl Ptx {
         )
     }
     pub fn compile<'a>(n: NodeRc, ctx: &'a Context) -> Result<Module<'a>, PtxError> {
-        use compiler::Compiler;
         let mut ptx = Ptx::new();
         let out = Compiler::compile(&mut ptx, &[n], &["x"]).map_err(|e| PtxError::Core(e))?;
 
@@ -100,9 +100,6 @@ impl Ptx {
 }
 
 pub fn bench_ptx(n: NodeRc, count: usize) -> f64 {
-    use std::time::Instant;
-    use cuda::{Buffer, Device};
-
     let dev = Device::get(0).expect("failed to init");
     let ctx = dev.create_context().unwrap();
     let m = Ptx::compile(n, &ctx).unwrap();

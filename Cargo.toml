@@ -4,11 +4,11 @@ version = "0.1.0"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
 build = "build.rs"
 features = ["nvidia", "jit"]
+license = "MIT"
 
 [dependencies]
 bullet_core   = { version = "0.1.0", path = "core" }
 bullet_macros = { version = "0.1.0", path = "macros" }
-cuda          = { version = "0.1",   path = "cuda", optional = true }
 memmap        = { version = "0.5.2", optional=true }
 simd          = { version = "0.2.0", optional=true }
 
@@ -16,7 +16,7 @@ simd          = { version = "0.2.0", optional=true }
 lalrpop = "0.13.1"
 
 [features]
-nvidia = ["cuda"]
+nvidia = []
 jit = ["memmap", "simd"]
 default = ["jit"]
 
@@ -30,4 +30,4 @@ tuple = "0.3.3"
 math_traits = "0.1.1"
 
 [workspace]
-members = ["core", "macros", "cuda"]
+members = ["core", "macros"]
