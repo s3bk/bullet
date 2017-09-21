@@ -3,6 +3,8 @@ name = "bullet_core"
 version = "0.1.0"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
 build = "build.rs"
+license = "MIT"
+description = "Core of Bullet (see crate bullet)"
 
 [dependencies]
 tuple = { version = "0.3", features = ["impl_simd"] }
