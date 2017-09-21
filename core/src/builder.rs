@@ -7,7 +7,7 @@ use lang::parse_Expr;
 use std::collections::HashMap;
 use std::iter::once;
 
-pub type NodeResult = Result<NodeRc>;
+pub type NodeResult = Result<NodeRc, Error>;
 
 struct Definition {
     args: Vec<String>,
@@ -175,7 +175,7 @@ impl Builder {
                     };
                 }
             },
-            Node::Poly(ref p) => {
+            Node::Poly(ref _p) => {
                 
             },
             _ => {}
@@ -228,7 +228,7 @@ impl Builder {
     pub fn tuple<I>(&self, parts: I) -> NodeResult
         where I: IntoIterator<Item=NodeResult>
     {
-        let v: Result<Vec<_>> = parts.into_iter().collect();
+        let v: Result<Vec<_>, _> = parts.into_iter().collect();
         Ok(self.intern(Node::Tuple(v?)))
     }
 

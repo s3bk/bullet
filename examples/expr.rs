@@ -1,6 +1,6 @@
-extern crate math;
-use math::builder::Builder;
-use math::diff::diff;
+extern crate bullet;
+use bullet::prelude::Builder;
+use bullet::diff::diff;
 
 fn main() {
     let exprs = [

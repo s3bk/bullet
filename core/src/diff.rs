@@ -3,7 +3,7 @@ use poly::Poly;
 use func::*;
 use func::Transient::*;
 
-pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc> {
+pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc, Error> {
     match **node {
         Node::Func(Func::Transient(f), ref g) => {
             let dg = diff(builder, g, var)?;
@@ -28,13 +28,13 @@ pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc> {
     }
 }
 
-pub fn diff_poly(builder: &Builder, poly: &Poly, var: &str) -> Result<Poly> {
+pub fn diff_poly(builder: &Builder, poly: &Poly, var: &str) -> Result<Poly, Error> {
     let mut sum = Poly::int(0);
     for (base, &fac) in poly.factors() {
-        let f: Result<Vec<Poly>> = base.iter().map(|&(ref f, n)| {
+        let f: Result<Vec<Poly>, Error> = base.iter().map(|&(ref f, n)| {
             Poly::from_node(f.clone()).pow_i(builder, n as i32)
         }).collect(); // [f₀, f₁, f₂, ...]
-        let df: Result<Vec<Poly>> = base.iter().map(|&(ref f, n)| Ok(
+        let df: Result<Vec<Poly>, Error> = base.iter().map(|&(ref f, n)| Ok(
             Poly::from_node(f.clone()).pow_i(builder, n as i32 -1)?
             * n * Poly::from_node(diff(builder, f, var)?) // ∂ₓ f(x)ⁿ = n f(x)ⁿ⁻¹ ∂ₓ f(x)
         )).collect(); // [∂ₓ f₀, ∂ₓ f₁, ∂ₓ f₂, ...]

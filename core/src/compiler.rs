@@ -44,7 +44,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
         }
     }
 
-    pub fn run(vm: &'a mut V, root: &'a Node) -> Result<V::Var> {
+    pub fn run(vm: &'a mut V, root: &'a Node) -> Result<V::Var, Error> {
         let mut comp = Compiler::new(vm);
         let mut vars = comp.visit(root);
         vars.sort();
@@ -58,7 +58,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
     }
 
     /// f is called for every node
-    pub fn compile(vm: &mut V, nodes: &[NodeRc], vars: &[&str]) -> Result<Vec<V::Var>>
+    pub fn compile(vm: &mut V, nodes: &[NodeRc], vars: &[&str]) -> Result<Vec<V::Var>, Error>
     {
         let mut comp = Compiler::new(vm);
         
@@ -84,7 +84,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
         Ok(vars)
     }
     
-    fn generate(&mut self, node: &'a Node) -> Result<V::Var> {
+    fn generate(&mut self, node: &'a Node) -> Result<V::Var, Error> {
         if let Some(stored) = self.storage.get(node) {
             return Ok(self.vm.load(stored)); // already computed
         }

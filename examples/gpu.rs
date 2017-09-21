@@ -1,8 +1,8 @@
-extern crate math;
+extern crate bullet;
 
 use std::env;
-use math::builder::Builder;
-use math::vm::ptx::bench_ptx;
+use bulllet::builder::Builder;
+use bullet::rt::ptx::bench_ptx;
 
 fn main() {
     let pow: u32 = env::args().nth(1).and_then(|s| s.parse().ok()).unwrap_or(10u32);

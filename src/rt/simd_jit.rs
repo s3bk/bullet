@@ -1,11 +1,11 @@
 use prelude::*;
 use simd::x86::avx::f32x8;
-use super::{AvxAsm, Source, Instr};
+use vm::simd::{SimdAsm, Source, Instr};
 use compiler::Compiler;
 use vm::{Round, Cmp};
-use super::x86_64::{Writer, op, Mode, Reg};
+use rt::x86_64::{Writer, op, Mode, Reg};
 use memmap::{Mmap, Protection};
-use vm::avx;
+use vm::simd::Reg as SimdReg;
 
 
 pub struct Code {
@@ -55,12 +55,12 @@ impl Code {
     }
 }
 
-pub fn avx_jit(nodes: &[NodeRc], vars: &[&str]) -> Result<Code>
+pub fn jit(nodes: &[NodeRc], vars: &[&str]) -> Result<Code, Error>
 {
-    let mut asm = AvxAsm::new();
+    let mut asm = SimdAsm::new();
     let outputs = Compiler::compile(&mut asm, nodes, vars)?;
 
-    let reg = |r: avx::Reg| r.0;
+    let reg = |r: SimdReg| r.0;
     let mode = |s: Source| match s {
         Source::Reg(r) => Mode::Direct(reg(r)),
         Source::Const(idx) => Mode::Memory(Reg::RDI, idx as i32 * 32),

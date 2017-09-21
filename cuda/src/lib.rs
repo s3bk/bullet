@@ -8,13 +8,13 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::Unique;
 
 #[derive(Debug)]
-pub enum Error {
+pub enum CudaError {
     Other(cudaError_enum),
     Prohibited
 }
-impl From<cudaError_enum> for Error {
-    fn from(v: cudaError_enum) -> Error {
-        Error::Other(v)
+impl From<cudaError_enum> for CudaError {
+    fn from(v: cudaError_enum) -> CudaError {
+        CudaError::Other(v)
     }
 }
 
@@ -24,7 +24,7 @@ pub struct Device {
     handle: CUdevice
 }
 impl Device {
-    pub fn get(num: u32) -> Result<Device, Error> {        
+    pub fn get(num: u32) -> Result<Device, CudaError> {        
         unsafe {
             let mut handle = mem::zeroed();
             cuInit(0)?;
@@ -35,14 +35,14 @@ impl Device {
             })
         }
     }
-    pub fn test(&self) -> Result<(), Error> {
+    pub fn test(&self) -> Result<(), CudaError> {
         if self.compute_mode()? == CUcomputemode_enum::CU_COMPUTEMODE_PROHIBITED as i32 {
-            return Err(Error::Prohibited);
+            return Err(CudaError::Prohibited);
         }
         Ok(())
     }
     #[inline]
-    fn get_attr(&self, attr: CUdevice_attribute_enum) -> Result<i32, Error> {
+    fn get_attr(&self, attr: CUdevice_attribute_enum) -> Result<i32, CudaError> {
         let mut val = 0;
         unsafe {
             cuDeviceGetAttribute(&mut val, attr, self.handle)?;
@@ -50,7 +50,7 @@ impl Device {
         Ok(val)
     }
     
-    pub fn get_name(&self) -> Result<String, Error> {
+    pub fn get_name(&self) -> Result<String, CudaError> {
         let mut buf = vec![0u8; 256];
         unsafe {
             cuDeviceGetName(buf.as_mut_ptr() as *mut i8, buf.len() as i32, self.handle)?;
@@ -60,14 +60,14 @@ impl Device {
         
         Ok(String::from_utf8(buf).expect("driver returned non-ascii"))
     }
-    pub fn total_memory(&self) -> Result<usize, Error> {
+    pub fn total_memory(&self) -> Result<usize, CudaError> {
         let mut size = 0;
         unsafe {
             cuDeviceTotalMem_v2(&mut size, self.handle)?;
         }
         Ok(size)
     }
-    pub fn create_context(&self) -> Result<Context, Error> {
+    pub fn create_context(&self) -> Result<Context, CudaError> {
         unsafe {
             let mut handle = mem::zeroed();
             cuCtxCreate_v2(&mut handle, 2, self.handle)?;
@@ -80,7 +80,7 @@ macro_rules! impl_device_attr {
     ($($(#[$meta:meta])* $fn:ident: $attr:ident,)*) => (
         impl Device { $(
             $( #[$meta] )*
-            pub fn $fn(&self) -> Result<i32, Error> {
+            pub fn $fn(&self) -> Result<i32, CudaError> {
                 self.get_attr(CUdevice_attribute_enum::$attr)
             }
         )* }
@@ -118,7 +118,7 @@ pub struct Context {
     handle: CUcontext
 }
 impl Context {
-    pub fn create_module(&self, data: &mut String) -> Result<Module, Error> {
+    pub fn create_module(&self, data: &mut String) -> Result<Module, CudaError> {
         unsafe {
             let mut module = mem::zeroed();
             
@@ -145,7 +145,7 @@ pub struct Module<'a> {
     context: &'a Context
 }
 impl<'a> Module<'a> {
-    pub fn get(&self, name: &str) -> Result<Function, Error> {
+    pub fn get(&self, name: &str) -> Result<Function, CudaError> {
         let mut name = String::from(name);
         
         let kernel = unsafe {
@@ -173,7 +173,7 @@ impl<'a> Function<'a> {
     /// and executes the kernel.
     /// The number and types of the parameters have to match those of the the function!
     #[inline]
-    pub unsafe fn launch(&self, grid: [u32; 3], block: [u32; 3], shared_mem: u32, args: &mut [*mut c_void]) -> Result<(), Error >
+    pub unsafe fn launch(&self, grid: [u32; 3], block: [u32; 3], shared_mem: u32, args: &mut [*mut c_void]) -> Result<(), CudaError>
     {
         println!("grid: {:?}, block: {:?}", grid, block);
         cuLaunchKernel(
@@ -188,7 +188,7 @@ impl<'a> Function<'a> {
         Ok(())
     }
     #[inline]
-    pub unsafe fn launch_simple<T: Copy>(&self, data_in: &Buffer<T>, data_out: &mut Buffer<T>) -> Result<(), Error> {
+    pub unsafe fn launch_simple<T: Copy>(&self, data_in: &Buffer<T>, data_out: &mut Buffer<T>) -> Result<(), CudaError> {
         let batch = 512;
         let mut src = data_in.dev_ptr()?;
         let mut dst = data_out.dev_ptr()?;
@@ -215,7 +215,7 @@ pub struct Buffer<T: Copy> {
 }
 impl<T: Copy> Buffer<T> {
     #[inline]
-    pub fn with_capacity(count: usize) -> Result<Buffer<T>, Error> {
+    pub fn with_capacity(count: usize) -> Result<Buffer<T>, CudaError> {
         let mut ptr = ptr::null_mut();
         unsafe {
             cuMemHostAlloc(&mut ptr as *mut _ as *mut *mut c_void, count * mem::size_of::<T>(), CU_MEMHOSTALLOC_DEVICEMAP)?;
@@ -235,7 +235,7 @@ impl<T: Copy> Buffer<T> {
         self.len += 1;
     }
     #[inline]
-    fn dev_ptr(&self) -> Result<u64, Error> {
+    fn dev_ptr(&self) -> Result<u64, CudaError> {
         let mut d_ptr = 0u64;
         unsafe {
             cuMemHostGetDevicePointer_v2(&mut d_ptr, self.ptr.as_ptr() as *mut c_void, 0)?;

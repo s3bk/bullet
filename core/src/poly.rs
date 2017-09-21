@@ -63,7 +63,7 @@ impl Poly {
                 
         Poly::one(vec![(node, 1)], 1.into())
     }
-    pub fn pow_i(self, builder: &Builder, i: i32) -> Result<Poly> {
+    pub fn pow_i(self, builder: &Builder, i: i32) -> Result<Poly, Error> {
         if i == 0 {
             return Ok(Poly::int(1));
         }

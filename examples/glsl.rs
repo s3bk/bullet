@@ -1,6 +1,6 @@
-extern crate math;
-use math::builder::Builder;
-use math::vm::glsl::glsl;
+extern crate bullet;
+use bullet::builder::Builder;
+use bullet::vm::glsl::glsl;
 
 fn main() {
     let expr = "(x+y)/2";

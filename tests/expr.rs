@@ -1,5 +1,5 @@
-extern crate math;
-use math::builder::Builder;
+extern crate bullet;
+use bullet::prelude::Builder;
 
 #[test]
 fn expr() {

@@ -1,7 +1,7 @@
-use vm::{Vm, Round};
-use node::NodeRc;
-use cuda::Context;
-use cuda::Module;
+use prelude::*;
+use vm::*;
+
+use cuda::{Context, Module, CudaError};
 use std::fmt::Write;
 
 struct Ptx {
@@ -25,6 +25,12 @@ macro_rules! line {
 fn f32_to_hex(f: f32) -> String {
     let x = unsafe { ::std::mem::transmute::<f32, u32>(f) };
     format!("0F{:08x}", x)
+}
+
+#[derive(Debug)]
+pub enum PtxError {
+    Core(Error),
+    Cuda(CudaError)
 }
 
 type Reg = String;
@@ -82,26 +88,24 @@ impl Ptx {
                 out=out[0]
         )
     }
-    pub fn compile<'a>(n: &NodeRc, ctx: &'a Context) -> Module<'a> {
+    pub fn compile<'a>(n: NodeRc, ctx: &'a Context) -> Result<Module<'a>, PtxError> {
         use compiler::Compiler;
         let mut ptx = Ptx::new();
-        let mut out = vec![];
-        Compiler::compile(&mut ptx, (n,), ("x",), |_, r| out.push(r));
-        
+        let out = Compiler::compile(&mut ptx, &[n], &["x"]).map_err(|e| PtxError::Core(e))?;
 
         let mut prog = ptx.assemble(out);
         println!("{}", prog);
-        ctx.create_module(&mut prog).expect("failed to create module")
+        ctx.create_module(&mut prog).map_err(|e| PtxError::Cuda(e))
     }
 }
 
-pub fn bench_ptx(n: &NodeRc, count: usize) -> f64 {
+pub fn bench_ptx(n: NodeRc, count: usize) -> f64 {
     use std::time::Instant;
     use cuda::{Buffer, Device};
 
     let dev = Device::get(0).expect("failed to init");
     let ctx = dev.create_context().unwrap();
-    let m = Ptx::compile(&n, &ctx);
+    let m = Ptx::compile(n, &ctx).unwrap();
 
     let mut data_in = Buffer::with_capacity(count).unwrap();
     let mut data_out = Buffer::with_capacity(count).unwrap();
@@ -125,7 +129,7 @@ fn test_ptx() {
     use builder::Builder;
     let b = Builder::new();
     let n = b.parse("sin(x^4)^2 + cos(3*x-5)").unwrap();
-    println!("{}ms", 1000. * bench_ptx(&n, 1024*1024));
+    println!("{}ms", 1000. * bench_ptx(n, 1024*1024));
 }
     
 impl Vm for Ptx {

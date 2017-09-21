@@ -2,19 +2,18 @@
 #![feature(conservative_impl_trait)]
 #![feature(core_intrinsics)]
 #![feature(box_syntax)]
+#![feature(proc_macro)]
 
 extern crate tuple;
-extern crate math;
+extern crate math_traits;
 extern crate hound;
+extern crate bullet;
+extern crate bullet_macros;
 
-use tuple::{T2, TupleElements, Map};
-use math::integrate::Integration;
-use math::real::Real;
-use math::cast::Cast;
-
-use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
+use tuple::{T2, Map};
+use bullet::integrate::Integration;
+use math_traits::{Cast, Real};
+use bullet_macros::math;
 
 #[derive(Copy, Clone, Debug)]
 struct DuffingParams {
@@ -30,17 +29,8 @@ struct DuffingParams {
 fn duffing(p: DuffingParams)
  -> impl Fn(f32, T2<f32, f32>) -> T2<f32, f32>
 {
-    use std::intrinsics::{fmul_fast, cosf32};
-    move |t, s| {
-        unsafe {
-            T2(
-                s.1,
-                fmul_fast(p.epsilon, cosf32(fmul_fast(p.omega, t)))
-                - fmul_fast(p.lambda, s.1)
-                - fmul_fast(s.0, p.alpha + fmul_fast(fmul_fast(s.0, s.0), p.beta))
-            )
-        }
-    }
+    let DuffingParams { epsilon: ɛ, lambda: λ, omega: ω, alpha: α, beta: β } = p; 
+    move |t, T2(x, y)| T2(x, math!(ɛ cos(ω t) - λ y - α x - β x^3))
 }
 
 fn main() {

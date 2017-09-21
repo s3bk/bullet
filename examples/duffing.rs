@@ -2,15 +2,16 @@
 #![feature(conservative_impl_trait)]
 #![feature(core_intrinsics)]
 #![feature(box_syntax)]
+#![feature(proc_macro)]
 
 extern crate tuple;
-extern crate num;
-extern crate math;
+extern crate bullet_macros;
+extern crate math_traits;
 
 use tuple::T2;
-use num::Num;
 use math::integrate::Integration;
-use math::real::Real;
+use bullet_macros::math;
+use math_traits::Real;
 
 
 #[allow(non_snake_case)]
@@ -18,17 +19,7 @@ use math::real::Real;
 fn duffing(ɛ: f32, λ: f32, Ω: f32, α: f32, β: f32)
  -> impl Fn(f32, T2<f32, f32>) -> T2<f32, f32>
 {
-    use std::intrinsics::{fmul_fast, cosf32};
-    move |t, s| {
-        unsafe {
-            T2(
-                s.1,
-                fmul_fast(ɛ, cosf32(t))
-                - fmul_fast(λ, s.1)
-                - fmul_fast(s.0, α + fmul_fast(fmul_fast(s.0, s.0), β))
-            )
-        }
-    }
+    move |t, T2(x, y)| T2(x, math!(ɛ cos(t) - λ y - α x - β x^3))
 }
 
 fn main() {

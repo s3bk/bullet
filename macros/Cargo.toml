@@ -4,8 +4,11 @@ version = "0.1.0"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
 
 [dependencies]
-bullet = { path = ".." }
 simd = "*"
+
+[dependencies.bullet_core]
+path = "../core"
+version = "0.1.0"
 
 [lib]
 proc-macro = true

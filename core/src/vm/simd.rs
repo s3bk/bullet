@@ -4,20 +4,13 @@ use vm::{Vm, Round, Cmp};
 use node::NodeRc;
 use quote::{Tokens, Ident};
 
-mod jit;
-
-#[allow(dead_code)]
-mod x86_64;
-
-pub use self::jit::avx_jit;
-
 impl fmt::Display for Reg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ymm{}", self.0)
     }
 }
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub struct Reg(u8);
+pub struct Reg(pub u8);
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Source {
     Reg(Reg),
@@ -35,7 +28,7 @@ impl fmt::Display for Source {
 }
 
 #[derive(Debug)]
-enum Instr {
+pub enum Instr {
     Add(Reg, Reg, Source),
     Sub(Reg, Reg, Source),
     Mul(Reg, Reg, Source),
@@ -46,16 +39,16 @@ enum Instr {
     MaskMove(Reg, Reg, Source), // conditinal load from const i
     Cmp(Reg, Reg, Source, Cmp)
 }
-struct AvxAsm {
-    instr: Vec<Instr>,
-    registers: [usize; 16],
-    used: u8,
-    inputs: Vec<Ident>,
-    consts: Vec<f32>
+pub struct SimdAsm {
+    pub instr: Vec<Instr>,
+    pub registers: [usize; 16],
+    pub used: u8,
+    pub inputs: Vec<Ident>,
+    pub consts: Vec<f32>
 }
-impl AvxAsm {
-    fn new() -> AvxAsm {
-        AvxAsm {
+impl SimdAsm {
+    pub fn new() -> SimdAsm {
+        SimdAsm {
             instr: vec![],
             used: 0,
             inputs: vec![],
@@ -63,7 +56,7 @@ impl AvxAsm {
             registers: [0; 16],
         }
     }
-    fn alloc_uses(&mut self, uses: usize) -> Reg {
+    pub fn alloc_uses(&mut self, uses: usize) -> Reg {
         let (r_num, r_uses) = self.registers.iter_mut()
             .enumerate()
             .filter(|&(_, &mut c)| c == 0)
@@ -71,19 +64,19 @@ impl AvxAsm {
         *r_uses = uses;
         Reg(r_num as u8)
     }
-    fn alloc(&mut self) -> Reg {
+    pub fn alloc(&mut self) -> Reg {
         self.alloc_uses(1)
     }
-    fn drop(&mut self, r: Reg) {
+    pub fn drop(&mut self, r: Reg) {
         self.registers[r.0 as usize] -= 1;
     }
-    fn drop_s(&mut self, s: Source) {
+    pub fn drop_s(&mut self, s: Source) {
         match s {
             Source::Reg(r) => self.drop(r),
             _ => {}
         }
     }
-    fn push(&mut self, i: Instr) {
+    pub fn push(&mut self, i: Instr) {
         println!("{:40} {:?}", format!("{:?}", i), self.registers);
         self.instr.push(i);
     }
@@ -114,7 +107,8 @@ impl AvxAsm {
         Source::Reg(r_last)
     }
 }
-impl Vm for AvxAsm {
+
+impl Vm for SimdAsm {
     type Var = Source;
     type Storage = Source;
     
@@ -195,9 +189,9 @@ impl Vm for AvxAsm {
     }
 }
 
-pub fn avx_asm(nodes: &[NodeRc], vars: &[&str]) -> Tokens
+pub fn simd_asm(nodes: &[NodeRc], vars: &[&str]) -> Tokens
 { 
-    let mut asm = AvxAsm::new();
+    let mut asm = SimdAsm::new();
 
     let mut def_out = vec![]; // defines
     let mut reg_out = vec![]; // registers

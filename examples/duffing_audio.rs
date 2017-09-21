@@ -1,22 +1,17 @@
+#![feature(proc_macro)]
+
 extern crate tuple;
-extern crate math;
 extern crate jack;
 extern crate termion;
+extern crate math_traits;
+extern crate bullet_macros;
 
-
-use tuple::{T2, TupleElements};
-use math::integrate::Integration;
-use math::real::Real;
-use math::cast::Cast;
-
-use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
-use std::sync::mpsc::{channel, Sender, Receiver};
-use std::io::Read;
+use bullet_macros::math;
+use tuple::T2;
+use math_traits::Real;
+use std::sync::mpsc::channel;
 use termion::event::Key;
 use termion::input::TermRead;
-use termion::raw::IntoRawMode;
 use jack::client::{Client, ClientOptions, ClosureProcessHandler, ProcessScope, AsyncClient};
 use jack::port::{AudioInSpec, AudioOutSpec, AudioOutPort, AudioInPort};
 use jack::jack_enums::JackControl;
@@ -73,14 +68,13 @@ fn main() {
         }
         JackControl::Continue
     });
-    let active_client = AsyncClient::new(client, (), process).unwrap();
+    let _active_client = AsyncClient::new(client, (), process).unwrap();
     
-    let mut stdin = std::io::stdin();
-    let mut stdout = std::io::stdout().into_raw_mode().unwrap();
+    let stdin = std::io::stdin();
     
     let mut params = DuffingParams::default();
     
-    let mut update = |p: &mut DuffingParams, idx, fac| {
+    let update = |p: &mut DuffingParams, idx, fac| {
         {
             let f = match idx {
                 0 => &mut p.epsilon,

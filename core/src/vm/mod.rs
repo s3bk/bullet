@@ -4,12 +4,8 @@ use std::fmt::Debug;
 use itertools::Itertools;
 
 pub mod syn;
-#[cfg(target_feature = "avx")] pub mod avx;
-
+pub mod simd;
 pub mod glsl;
-
-#[cfg(feature="nvidia")]
-pub mod ptx;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Round {

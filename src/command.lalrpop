@@ -1,0 +1,12 @@
+use eval::Command;
+use bullet_core::lang::*;
+
+grammar<'b>(builder: &'b Builder);
+
+pub CommaS = Comma<Name>;
+pub Command: Result<Command<'input>, Error> = {
+    "def" <f:r"\pL+"> "(" <a:CommaS> ")" ":=" <e:Expr> => Ok(Command::Define(f, a, e?)),
+    "eval" <e:Expr> => Ok(Command::Eval(e?)),
+    "bench" <e:Expr> => Ok(Command::Bench(e?)),
+    <e:Expr> => Ok(Command::Expr(e?)),
+};
