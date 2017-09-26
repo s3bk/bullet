@@ -11,4 +11,4 @@ pub use self::simd_jit::jit;
 pub mod ptx;
 
 #[cfg(feature="nvidia")]
-mod cuda;
+pub mod cuda;
