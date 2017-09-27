@@ -76,7 +76,8 @@ impl fmt::Display for Op {
 #[derive(Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Node {
     Var(String),
-    Func(Func, NodeRc),
+    Func(Func),
+    Apply(NodeRc, NodeRc),
     Poly(Poly),
     Tuple(Vec<NodeRc>)
 }

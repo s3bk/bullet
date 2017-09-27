@@ -31,7 +31,7 @@ macro_rules! todo {
 pub mod error;
 //pub mod expr;
 #[allow(unused_extern_crates)]
-pub mod lang;      // the parser
+pub mod lang { include!(concat!(env!("OUT_DIR"), "/lang.rs")); }      // the parser
 pub mod diff;      // analytical differentiation
 pub mod node;      // function graph
 pub mod func;      // analytical functions and operators
