@@ -1,5 +1,7 @@
 use builder::{Builder, NodeResult};
 use func::Func;
+use eval::Command;
+use error::Error;
 
 grammar<'b>(builder: &'b Builder);
 
@@ -62,3 +64,12 @@ Num: NodeResult = <s:r"[0-9]+"> => builder.decimal(s);
 NumFloat: NodeResult = <s:r"[0-9]+\.[0-9]+"> => builder.decimal_float(s);
 Var: NodeResult = <s:Name> => Ok(builder.var(s));
 Name: &'input str = r"\pL+";
+
+
+pub CommaS = Comma<Name>;
+pub Command: Result<Command<'input>, Error> = {
+    "def" <f:r"\pL+"> "(" <a:CommaS> ")" ":=" <e:Expr> => Ok(Command::Define(f, a, e?)),
+    "eval" <e:Expr> => Ok(Command::Eval(e?)),
+    "bench" <e:Expr> => Ok(Command::Bench(e?)),
+    <e:Expr> => Ok(Command::Expr(e?)),
+};

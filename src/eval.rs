@@ -1,6 +1,7 @@
 use prelude::*;
 use std::collections::HashMap;
 
+
 pub enum Command<'a> {
     Define(&'a str, Vec<&'a str>, NodeRc),
     Expr(NodeRc),
@@ -20,7 +21,7 @@ impl EvalContext {
             defines: HashMap::new()
         }
     }
-    pub fn eval(&self, node: &Node) -> Result<f64> {
+    pub fn eval(&self, node: &Node) -> Result<f64, Error> {
         use func::Transient::*;
         use func::Func::*;
         match *node {
@@ -58,14 +59,13 @@ impl EvalContext {
         self.defines.get(var).cloned()
     }
 
-    
     #[cfg(target_feature = "avx")]
-    fn bench(&self, expr: NodeRc) -> Result<String> {
+    fn bench(&self, expr: NodeRc) -> Result<String, Error> {
         use std::time::Instant;
         use simd::x86::avx::f32x8;
-        use vm::avx::avx_jit;
+        use rt::simd_jit::jit;
         
-        let code = avx_jit(&[expr], &["x"])?;
+        let code = jit(&[expr], &["x"])?;
         let data_in = vec![f32x8::splat(self.get("x").unwrap_or(0.1) as f32); code.num_inputs];
         let mut data_out = vec![f32x8::splat(0.0); code.num_outputs];
 
@@ -77,7 +77,7 @@ impl EvalContext {
         Ok(format!("{} values/s", n as f64 / duration_as_seconds(dt)))
     }
     
-    pub fn run(&mut self, input: &str) -> Result<Option<String>> {
+    pub fn run(&mut self, input: &str) -> Result<Option<String>, Error> {
         use lang::parse_Command;
         use self::Command::*;
         

@@ -24,10 +24,6 @@ extern crate memmap;
 #[cfg(feature="jit")]
 extern crate simd;
 
-pub mod integrate;
-pub mod rt;
-pub mod vm;
-
 macro_rules! todo {
     ($desc:expr) => ({return Err(Error::Todo($desc));})
 }
@@ -35,17 +31,23 @@ macro_rules! todo {
 pub mod error;
 //pub mod expr;
 #[allow(unused_extern_crates)]
-pub mod lang;
-pub mod diff;
-pub mod node;
-pub mod func;
-pub mod rational;
-pub mod compiler;
-pub mod poly;
-pub mod builder;
-mod consts;
-mod display;
-mod util;
+pub mod lang;      // the parser
+pub mod diff;      // analytical differentiation
+pub mod node;      // function graph
+pub mod func;      // analytical functions and operators
+pub mod rational;  // rational numbers
+pub mod compiler;  // compiles function graph for the vm
+pub mod vm;        // the virtual machine
+pub mod poly;      // polynomial representation
+pub mod builder;   // helps you crate function graphs
+pub mod eval;      // enables to actually get "values"
+pub mod integrate; // numerical integration
+pub mod rt;        // runtime (various jit compilers, gpu integration)
+
+mod consts;        // numerical constants
+mod display;       // function graph representation
+mod util;          // utiliy functions
+
 
 pub mod prelude {
     pub use error::Error;
