@@ -28,7 +28,7 @@ lalrpop = "0.13.1"
 [features]
 nvidia = []
 jit = ["memmap", "simd"]
-default = ["jit", "nvidia"]
+default = ["jit"]
 
 [dev-dependencies]
 jack = "0.5.3"
