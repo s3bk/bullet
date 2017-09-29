@@ -23,7 +23,7 @@ impl EvalContext {
     }
     pub fn eval(&self, node: &Node) -> Result<f64, Error> {
         use func::Transient::*;
-        use func::Func::*;
+        use func::Func;
         match *node {
             Node::Poly(ref p) => {
                 let mut sum = 0.0;
@@ -36,16 +36,19 @@ impl EvalContext {
                 }
                 Ok(sum)
             }
-            Node::Func(Transient(t), ref g) => {
+            Node::Apply(ref f, ref g) => {
                 let x = self.eval(g)?;
-                Ok(match t {
-                    Sin => x.sin(),
-                    Cos => x.cos(),
-                    Log => x.ln(),
-                    Exp => x.exp()
-                })
+                match **f {
+                    Node::Op(Func::Transient(f)) => Ok(match f {    
+                        Sin => x.sin(),
+                        Cos => x.cos(),
+                        Log => x.ln(),
+                        Exp => x.exp()
+                    }),
+                    _ => todo!("apply non transients")
+                }
             },
-            Node::Func(Diff(_), _) => todo!("numeric differentiation"),
+            Node::Op(_) => todo!("?"),
             Node::Var(ref s) => self.defines.get(s).cloned().ok_or(Error::Undefined(s.clone())),
             _ => unimplemented!()
         }

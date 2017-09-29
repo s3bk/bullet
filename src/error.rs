@@ -17,6 +17,7 @@ pub enum Error {
     Undefined(String),
     ShapeMismatch(usize, usize),
     Todo(&'static str),
+    Bug(&'static str),
     Other(String),
     Overflow
 }
@@ -33,6 +34,7 @@ impl fmt::Display for Error {
             Undefined(ref name) => write!(f, "'{}' is not defined", name),
             ShapeMismatch(a, b) => write!(f, "shapes do not match ({} vs. {})", a, b),
             Todo(what) => write!(f, "{} is not implemented yet", what),
+            Bug(what) => write!(f, "BUG: {}", what),
             Other(ref msg) => write!(f, "{}", msg),
             Overflow => write!(f, "out of bits!")
         }       

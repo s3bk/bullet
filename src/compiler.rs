@@ -11,7 +11,7 @@ pub struct Compiler<'a, V: Vm + 'a> {
     vm: &'a mut V
 }
 impl<'a, V: Vm + 'a> Compiler<'a, V> {
-    fn visit(&mut self, node: &'a Node) -> Vec<&'a str> {
+    fn visit(&mut self, node: &'a Node) -> Result<Vec<&'a str>, Error> {
         let mut vars = vec![];
         let mut queue = vec![node];
         while let Some(node) = queue.pop() {
@@ -24,15 +24,19 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
                                 queue.extend(base.iter().map(|b| &*b.0));
                             }
                         },
-                        Node::Func(_, ref g) => queue.push(g),
+                        Node::Apply(ref f, ref g) => match **f {
+                            Node::Op(Func::Transient(_)) => queue.push(g),
+                            _ => bug!("only transients are allowed as left argument of apply"),
+                        }
                         Node::Var(ref name) => vars.push(name.as_str()),
-                        Node::Tuple(ref parts) => queue.extend(parts.iter().map(|n| &**n))
+                        Node::Tuple(ref parts) => queue.extend(parts.iter().map(|n| &**n)),
+                        Node::Op(_) => bug!("no transients allowd outside of apply")
                     }
                 },
                 Entry::Occupied(mut o) => *o.get_mut() += 1
             }
         }
-        vars
+        Ok(vars)
     }
 
     pub fn new(vm: &'a mut V) -> Compiler<'a, V> {
@@ -46,7 +50,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
 
     pub fn run(vm: &'a mut V, root: &'a Node) -> Result<V::Var, Error> {
         let mut comp = Compiler::new(vm);
-        let mut vars = comp.visit(root);
+        let mut vars = comp.visit(root)?;
         vars.sort();
 
         for name in vars {
@@ -64,7 +68,7 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
         
         // walk all nodes
         for n in nodes.iter() {
-            comp.visit(&**n);
+            comp.visit(&**n)?;
         }
         
         for &name in vars.iter() {
@@ -140,16 +144,19 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
 	        println!("use {}", name);
 	        self.sources.remove(name.as_str()).ok_or(Error::Undefined(name.clone()))?
 	    },
-            Node::Func(Func::Transient(f), ref g) => {
-                use self::Transient::*;
-                let x = self.generate(g)?;
-                match f {
-                    Sin => self.vm.sin(x),
-                    Cos => self.vm.cos(x),
-                    _ => todo!("implement all functions for avx")
-                }
+            Node::Apply(ref f, ref g) => match **f {
+                Node::Op(Func::Transient(f)) => { 
+                    use self::Transient::*;
+                    let x = self.generate(g)?;
+                    match f {
+                        Sin => self.vm.sin(x),
+                        Cos => self.vm.cos(x),
+                        _ => todo!("implement all functions for avx")
+                    }
+                },
+                _ => todo!("implement non-transient apply ops")
             },
-            Node::Func(Func::Diff(_), _) => todo!("numerical differential"),
+            Node::Op(_) => bug!("operators are not allowed outside apply"),
             Node::Tuple(_) => todo!("implement tuples")
         };
         println!("{} uses for {} (stored in {:?})", self.uses[node], node, var);

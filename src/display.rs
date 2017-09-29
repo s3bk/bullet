@@ -102,9 +102,8 @@ impl Tokens {
     pub fn node(n: &Node) -> Tokens {
         let mut tokens = Tokens::new();
         match *n {
-            Node::Func(ref f, ref g) => {
-                tokens.push(format!("{}({})", f, Tokens::node(g)));
-            },
+            Node::Op(ref f) => tokens.push(f),
+            Node::Apply(ref f, ref g) => tokens.push(format!("{}({})", Tokens::node(f), Tokens::node(g))),
             Node::Poly(ref p) => {
                 match p.factorize() {
                     Some((p, q)) => {

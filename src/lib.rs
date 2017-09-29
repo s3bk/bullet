@@ -27,6 +27,9 @@ extern crate simd;
 macro_rules! todo {
     ($desc:expr) => ({return Err(Error::Todo($desc));})
 }
+macro_rules! bug {
+    ($desc:expr) => ({return Err(Error::Bug($desc));})
+}
 
 pub mod error;
 //pub mod expr;

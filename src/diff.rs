@@ -5,26 +5,31 @@ use func::Transient::*;
 
 pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc, Error> {
     match **node {
-        Node::Func(Func::Transient(f), ref g) => {
-            let dg = diff(builder, g, var)?;
-            builder.mul(
-                match f {
-                    Sin => // d/dx sin(g(x)) = cos(g(x)) g'(x)
-                        builder.func(Cos.into(), g.clone())?, 
-                    Cos => // d/dx cos(g(x)) = - sin(g(x)) g'(x)
-                        builder.neg(builder.func(Sin.into(), g.clone())?)?,
-                    Log => // d/dx log(g(x)) = g'(x) / g(x)
-                        builder.pow_i(g.clone(), -1)?,
-                    Exp => // d/dx exp(g(x)) = exp(g(x)) g'(x)
-                        builder.func(Exp.into(), g.clone())?,
+        Node::Apply(ref f, ref g) => {
+            match **f {
+                Node::Op(Func::Transient(f)) => {
+                    let dg = diff(builder, g, var)?;
+                    builder.mul(
+                        match f {
+                            Sin => // d/dx sin(g(x)) = cos(g(x)) g'(x)
+                                builder.func(Cos.into(), g.clone())?, 
+                            Cos => // d/dx cos(g(x)) = - sin(g(x)) g'(x)
+                                builder.neg(builder.func(Sin.into(), g.clone())?)?,
+                            Log => // d/dx log(g(x)) = g'(x) / g(x)
+                                builder.pow_i(g.clone(), -1)?,
+                            Exp => // d/dx exp(g(x)) = exp(g(x)) g'(x)
+                                builder.func(Exp.into(), g.clone())?,
+                        },
+                        dg       
+                    )
                 },
-                dg
-            )
+                _ => todo!("diff non-ops")
+            }
         },
         Node::Var(ref s) => Ok(builder.int((s == var) as i64)),
         Node::Poly(ref p) => Ok(builder.poly(diff_poly(builder, p, var)?)),
         Node::Tuple(ref parts) => builder.tuple(parts.iter().map(|p| diff(builder, p, var))),
-        _ => unimplemented!()
+        _ => todo!("diff ???")
     }
 }
 

@@ -6,6 +6,7 @@ use poly::Poly;
 use lang::parse_Expr;
 use std::collections::HashMap;
 use std::iter::once;
+use diff::diff;
 
 pub type NodeResult = Result<NodeRc, Error>;
 
@@ -140,9 +141,9 @@ impl Builder {
         self.uniform_one(a, i, |a, i| Ok(self.poly(poly(a).pow_i(self, i)?)))
     }
 
-    /// f(g)
+    /// f
     pub fn func(&self, f: Func, g: NodeRc) -> NodeResult {
-        self.uniform_one(g, f, |g, f| Ok(self.intern(Node::Func(f, g))))
+        self.apply(self.intern(Node::Op(f)), g)
     }
 
     /// make a name variable
@@ -175,8 +176,11 @@ impl Builder {
                     };
                 }
             },
+            Node::Op(Func::Diff(ref var)) => {
+                return self.uniform_one(right, (), |g, ()| diff(self, &g, var));
+            }
             Node::Poly(ref _p) => {
-                
+                todo!("poly apply");
             },
             _ => {}
         }
@@ -203,7 +207,8 @@ impl Builder {
                     )
                 })
             ),
-            Node::Func(ref f, ref n) => self.func(f.clone(), self.substitute(n, map)?)
+            Node::Apply(ref f, ref g) => self.apply(self.substitute(f, map)?, self.substitute(g, map)?),
+            Node::Op(_) => Ok(node.clone())
         }
     }
 
