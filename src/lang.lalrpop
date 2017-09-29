@@ -19,8 +19,8 @@ pub Factor: NodeResult = {
     Pow,
 };
 
-pub Op: Func = {
-    <v:r"d/d(\pL+)"> => Func::Diff(v[3..].into()),
+pub Op: NodeResult = {
+    <v:r"d/d(\pL+)"> => builder.op(Func::Diff(v[3..].into())),
 };
 
 pub Pow: NodeResult = {
@@ -58,6 +58,7 @@ pub Term: NodeResult = {
     Var,
     Tuple,
     Array,
+    Op,
 };
 
 Num: NodeResult = <s:r"[0-9]+"> => builder.decimal(s);

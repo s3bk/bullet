@@ -141,9 +141,14 @@ impl Builder {
         self.uniform_one(a, i, |a, i| Ok(self.poly(poly(a).pow_i(self, i)?)))
     }
 
-    /// f
+    /// f(g)
     pub fn func(&self, f: Func, g: NodeRc) -> NodeResult {
-        self.apply(self.intern(Node::Op(f)), g)
+        self.apply(self.op(f)?, g)
+    }
+
+    /// f
+    pub fn op(&self, f: Func) -> NodeResult {
+        Ok(self.intern(Node::Op(f)))
     }
 
     /// make a name variable
@@ -176,8 +181,9 @@ impl Builder {
                     };
                 }
             },
-            Node::Op(Func::Diff(ref var)) => {
-                return self.uniform_one(right, (), |g, ()| diff(self, &g, var));
+            Node::Op(ref op) => match *op {
+                Func::Diff(ref var) => return self.uniform_one(right, (), |g, ()| diff(self, &g, var)),
+                _ => return Ok(self.intern(Node::Apply(left.clone(), right)))
             }
             Node::Poly(ref _p) => {
                 todo!("poly apply");
