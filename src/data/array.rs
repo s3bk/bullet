@@ -1,40 +1,70 @@
+use data::*;
+use std::ops::*;
+
 /// runtime Array 
-struct Array<T> {
-    data: *mut T,
+pub struct Array<T> {
+    base: *mut T,
     size: usize, // number of Ts
     shape: Vec<(usize, usize)> // (size, stride)
 }
-struct Slice<'a, T> {
+pub struct Slice<T, B> {
     base: *mut T,
     stride: usize, // in elements
     start: usize, // base.offset(start) == first element
-    end: usize // base.offset(end-1) == last element
+    end: usize, // base.offset(end-1) == last element,
+    _b: B
 }
-impl<'a, T> Slice<'a, T> {
+impl<T: Copy, B> Slice<T, B> {
     /// get the element at offset i without bounds checking
     #[inline]
-    unsafe fn idx(&self, i: usize) -> T {
+    pub unsafe fn idx(&self, pos: usize) -> T {
         debug_assert!(pos >= self.start);
         debug_assert!(pos < self.end);
-        debug_assert!(pos < std::isize::MAX);
-        unsafe { *base.offset(i as isize) }
+        debug_assert!(pos < ::std::isize::MAX as usize);
+        *self.base.offset(pos as isize)
+    }
+    #[inline]
+    pub fn as_ptr(&self) -> *const T {
+        self.base as *const T
+    }
+    #[inline]
+    pub fn len(&self) -> usize {
+        (self.end - self.start) / self.stride
+    }   
+}
+impl<'a, T, B: Mut<'a>> Slice<T, B> {
+    #[inline]
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        self.base
     }
 }
-impl<'a, T: Copy> Index<usize> for Slice<'a, T> {
+impl<T: Copy, B> Index<usize> for Slice<T, B> {
     type Output = T;
     #[inline]
-    fn index(&self, idx: usize) -> T {
+    fn index(&self, idx: usize) -> &T {
+        let pos = idx * self.stride;
         // indices outside of (start, end] are not valid
-        assert!(idx >= self.start && idx < self.end, "out of bounds");
+        assert!(pos >= self.start && pos < self.end, "out of bounds");
         
         // we are in bounds
-        unsafe { self.idx(idx) }
+        unsafe { &*self.base.offset(pos as isize) }
     }
 }
-impl<'a, T: Copy> Iterator for Slice<'a, T> {
+impl<'a, T: Copy, B: Mut<'a>> IndexMut<usize> for Slice<T, B> {
+    #[inline]
+    fn index_mut(&mut self, idx: usize) -> &mut T {
+        let pos = idx * self.stride;
+        // indices outside of (start, end] are not valid
+        assert!(pos >= self.start && pos < self.end, "out of bounds");
+        
+        // we are in bounds
+        unsafe { &mut *self.base.offset(pos as isize) }
+    }
+}
+impl<T: Copy, B> Iterator for Slice<T, B> {
     type Item = T;
     #[inline]
-    fn next(&mut self) {
+    fn next(&mut self) -> Option<T> {
         if self.start < self.end {
             let v = unsafe { self.idx(self.start) };
             self.start += self.stride;
@@ -49,7 +79,7 @@ impl<'a, T: Copy> Iterator for Slice<'a, T> {
         (n, Some(n))
     }
     #[inline]
-    fn last(&self) -> Option<T> {
+    fn last(self) -> Option<T> {
         let p = self.end - self.stride;
         if p >= self.start {
             Some(unsafe { self.idx(p) })
@@ -58,16 +88,11 @@ impl<'a, T: Copy> Iterator for Slice<'a, T> {
         }
     }
     #[inline]
-    fn step_by(mut self, step: usize) -> Slice<'a, T> {
-        self.stride *= step;
-        self
-    }
-    #[inline]
     fn count(self) -> usize {
         (self.end - self.start) / self.stride
     }
     #[inline]
-    fn for_each<F>(self, f: F) where F: FnMut(T) {
+    fn for_each<F>(mut self, mut f: F) where F: FnMut(T) {
         while self.start < self.end {
             f(unsafe { self.idx(self.start) });
             self.start += self.stride;
@@ -75,9 +100,9 @@ impl<'a, T: Copy> Iterator for Slice<'a, T> {
     }
 }
 
-impl<'a, T: Copy> DoubleEndedIterator for Slice<'a, T> {
+impl<T: Copy, B> DoubleEndedIterator for Slice<T, B> {
     #[inline]
-    fn next_back(&self) {
+    fn next_back(&mut self) -> Option<T> {
         if self.start < self.end {
             let v = unsafe { *self.base.offset(self.end as isize) };
             self.end -= self.stride;
@@ -87,16 +112,11 @@ impl<'a, T: Copy> DoubleEndedIterator for Slice<'a, T> {
         }
     }
 }
+
 impl<T> Array<T> {
     #[inline]
     fn offset(&self, idx: &[usize]) -> usize {
-        idx.iter().zip(self.shape.iter()).map(|(i, (_, &stride))| i * stride).sum()
-    }
-    #[inline]
-    unsafe fn idx(&self, pos: usize) -> T {
-        debug_assert!(pos < self.size);
-        debug_assert!(pos < std::isize::MAX);
-        *self.base.offset(pos as isize)
+        idx.iter().zip(self.shape.iter()).map(|(i, &(_, stride))| i * stride).sum()
     }
 }
 impl<'a, T> Index<&'a [usize]> for Array<T> {
@@ -106,6 +126,6 @@ impl<'a, T> Index<&'a [usize]> for Array<T> {
     fn index(&self, idx: &'a [usize]) -> &T {
         let off = self.offset(idx);
         assert!(off < self.size);
-        unsafe { self.idx(off) }
+        unsafe { &*self.base.offset(off as isize) }
     }
 }

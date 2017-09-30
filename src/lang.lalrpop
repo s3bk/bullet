@@ -63,7 +63,7 @@ pub Term: NodeResult = {
 
 Num: NodeResult = <s:r"[0-9]+"> => builder.decimal(s);
 NumFloat: NodeResult = <s:r"[0-9]+\.[0-9]+"> => builder.decimal_float(s);
-Var: NodeResult = <s:Name> => Ok(builder.var(s));
+Var: NodeResult = <s:Name> => Ok(builder.named(s));
 Name: &'input str = r"\pL+";
 
 

@@ -12,6 +12,7 @@
 #![feature(asm)]
 #![feature(unique)]
 #![feature(try_trait)]
+#![feature(iterator_step_by, iterator_for_each)]
 
 extern crate tuple;
 extern crate itertools;
@@ -46,6 +47,7 @@ pub mod builder;   // helps you crate function graphs
 pub mod eval;      // enables to actually get "values"
 pub mod integrate; // numerical integration
 pub mod rt;        // runtime (various jit compilers, gpu integration)
+pub mod data;
 
 mod consts;        // numerical constants
 mod display;       // function graph representation

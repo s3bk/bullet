@@ -10,14 +10,9 @@ use diff::diff;
 
 pub type NodeResult = Result<NodeRc, Error>;
 
-struct Definition {
-    args: Vec<String>,
-    expr: NodeRc
-}
-
 pub struct Builder {
     cache: RefCell<Cache>,
-    defs: HashMap<String, Definition>
+    defs: HashMap<String, NodeRc>
 }
 
 fn poly(node: NodeRc) -> Poly {
@@ -44,10 +39,12 @@ impl Builder {
         }
     }
     pub fn define(&mut self, name: &str, args: &[&str], node: NodeRc) {
-        self.defs.insert(name.to_owned(), Definition {
-            args: args.iter().map(|&s| s.into()).collect(),
-            expr: node
-        });
+        let def = Node::Op(Func::Definition(
+            args.iter().map(|&s| s.into()).collect(),
+            node
+        ));
+        let defn = self.intern(def);
+        self.defs.insert(name.to_owned(), defn);
     }
     pub fn parse(&self, expr: &str) -> NodeResult {
         parse_Expr(self, expr).unwrap_or_else(|e| Err(Error::parse_error(e, expr)))
@@ -155,39 +152,40 @@ impl Builder {
     pub fn var(&self, name: &str) -> NodeRc {
         self.intern(Node::Var(name.into()))
     }
+    pub fn named(&self, name: &str) -> NodeRc {
+        match self.defs.get(name) {
+            Some(n) => n.clone(),
+            None => self.var(name)
+        }
+    }
 
     /// magic 'apply' function
     pub fn apply(&self, left: NodeRc, right: NodeRc) -> NodeResult {
         match *left {
-            Node::Var(ref name) => {
-                if let Some(def) = self.defs.get(name) {
+            Node::Op(ref op) => match *op {
+                Func::Diff(ref var) => return self.uniform_one(right, (), |g, ()| diff(self, &g, var)),
+                Func::Definition(ref def_args, ref body) => {
                     let map = |args: &[NodeRc]| -> HashMap<&str, NodeRc> {
                         args.iter()
-                            .zip(def.args.iter())
+                            .zip(def_args.iter())
                             .map(|(subst, var)| (&**var, subst.clone()))
                             .collect()
                     };
 
                     return match *right {
-                        Node::Tuple(ref parts) => match def.args.len() {
+                        Node::Tuple(ref parts) => match def_args.len() {
                             1 => {
-                                self.tuple(parts.windows(1).map(|p| self.substitute(&def.expr, &map(p))))
+                                self.tuple(parts.windows(1).map(|p| self.substitute(body, &map(p))))
                             },
-                            n if n == parts.len() => self.substitute(&def.expr, &map(parts)),
+                            n if n == parts.len() => self.substitute(&body, &map(parts)),
                             n => Err(Error::ShapeMismatch(n, parts.len()))
                         },
-                        _ if def.args.len() == 1 => self.substitute(&def.expr, &map(&[right.clone()])),
-                        _ => Err(Error::ShapeMismatch(def.args.len(), 1))
+                        _ if def_args.len() == 1 => self.substitute(&body, &map(&[right.clone()])),
+                        _ => Err(Error::ShapeMismatch(def_args.len(), 1))
                     };
-                }
-            },
-            Node::Op(ref op) => match *op {
-                Func::Diff(ref var) => return self.uniform_one(right, (), |g, ()| diff(self, &g, var)),
-                _ => return Ok(self.intern(Node::Apply(left.clone(), right)))
+                },
+                _ => return Ok(self.intern(Node::Apply(left.clone(), right)))       
             }
-            Node::Poly(ref _p) => {
-                todo!("poly apply");
-            },
             _ => {}
         }
         self.mul(left, right)

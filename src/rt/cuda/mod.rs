@@ -4,6 +4,7 @@ pub mod ffi;
 use self::ffi::cuda::*;
 use std::{mem, ptr, slice};
 use std::os::raw::c_void;
+use std::cmp::min;
 
 pub mod device;
 pub mod buffer;
@@ -13,6 +14,7 @@ pub mod util;
 pub use self::device::*;
 pub use self::buffer::*;
 pub use self::util::*;
+use data::*;
 
 #[derive(Debug)]
 pub enum CudaError {
@@ -116,6 +118,31 @@ impl<'a> Function<'a> {
         )?;
         cuCtxSynchronize()?;
         data_out.set_len(data_in.len());
+        Ok(())
+    }
+    pub unsafe fn launch_slice<'b, T, I, O>(&self, data_in: Slice<T, I>, mut data_out: Slice<T, O>) -> Result<(), CudaError>
+        where T: Copy, I: Ref<'b>, O: Mut<'b>
+    {
+        let batch = 512;
+        let (mut src, mut dst) = (0, 0);
+
+        // get device pointers
+        cuMemHostGetDevicePointer_v2(&mut src, data_in.as_ptr() as *mut c_void, 0)?;
+        cuMemHostGetDevicePointer_v2(&mut dst, data_out.as_mut_ptr() as *mut c_void, 0)?;
+        
+        let mut args = [
+            &mut src as *mut u64 as *mut c_void,
+            &mut dst as *mut u64 as *mut c_void
+        ];
+        let len = min(data_in.len(), data_out.len());
+        self.launch(
+            [(len / batch as usize) as u32, 1, 1],
+            [batch, 1, 1],
+            0,
+            &mut args
+        )?;
+        cuCtxSynchronize()?;
+        
         Ok(())
     }
 }

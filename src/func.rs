@@ -1,4 +1,5 @@
 use std::fmt;
+use prelude::*;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub enum Transient {
@@ -13,8 +14,8 @@ use self::Transient::*;
 pub enum Func {
     Transient(Transient),
     Diff(String),
+    Definition(Vec<String>, NodeRc)
 }
-use self::Func::*;
 
 impl From<Transient> for Func {
     fn from(t: Transient) -> Func {
@@ -24,6 +25,7 @@ impl From<Transient> for Func {
 
 impl fmt::Display for Func {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Func::*;
         match *self {
             Transient(t) => {
                 let name = match t {
@@ -34,7 +36,8 @@ impl fmt::Display for Func {
                 };
                 f.write_str(name)
             },
-            Diff(ref var) => write!(f, "d/d{}", var)
+            Diff(ref var) => write!(f, "d/d{}", var),
+            Definition(ref args, ref expr) => write!(f, "({}) => {}", args.iter().format(", "), expr)
         }
     }
 }
