@@ -33,7 +33,7 @@ impl Builder {
     }
     fn init(&mut self) {
         let x = self.var("x");
-        for &(n, f) in [("sin", Sin), ("cos", Cos), ("exp", Exp), ("log", Log)].iter() {
+        for &(n, f) in [("sin", Sin), ("cos", Cos), ("exp", Exp), ("log", Log), ("ln", Log)].iter() {
             let f = self.func(Func::Transient(f), x.clone()).unwrap();
             self.define(n, &["x"], f);
         }
