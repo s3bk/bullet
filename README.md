@@ -1,4 +1,4 @@
-# math 
+# bullet 
 An attempt at a computer algbra system written in Rust
 
 (It also contains a few useful traits, a proc_macro to turn mathematical notation into Rust code, avx-assembly or executable code.)
