@@ -1,7 +1,7 @@
 extern crate bullet;
 
 use std::env;
-use bulllet::builder::Builder;
+use bullet::builder::Builder;
 use bullet::rt::ptx::bench_ptx;
 
 fn main() {
