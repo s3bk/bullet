@@ -37,7 +37,11 @@ impl fmt::Display for Func {
                 f.write_str(name)
             },
             Diff(ref var) => write!(f, "d/d{}", var),
-            Definition(ref args, ref expr) => write!(f, "({}) => {}", args.iter().format(", "), expr)
+            Definition(ref args, ref expr) => match args.len() {
+                0 => expr.fmt(f),
+                1 => write!(f, "{} => {}", args[0], expr),
+                _ => write!(f, "({}) => {}", args.iter().format(", "), expr)
+            }
         }
     }
 }

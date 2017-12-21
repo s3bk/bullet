@@ -5,6 +5,6 @@ use bullet::vm::simd;
 
 fn main() {
     let b = Builder::new();
-    let e = b.parse("sin(x)").unwrap();
-    println!("{}", simd::simd_asm(&[e], &["x"]));
+    println!("{}", simd::simd_asm(&[b.parse("sin(x)").unwrap()], &["x"]));
+    println!("{}", simd::simd_asm(&[b.parse("cos(x)").unwrap()], &["x"]));
 }
