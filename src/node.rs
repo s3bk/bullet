@@ -84,7 +84,7 @@ pub enum Node {
 
 impl fmt::Display for Node {
     fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
-        use display::Tokens;
-        Tokens::node(self).fmt(w)
+        use display::*;
+        Tokens::node(self, &Mode::Text).fmt(w)
     }
 }

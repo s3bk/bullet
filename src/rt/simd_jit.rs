@@ -34,24 +34,13 @@ impl Code {
         } }
     }
     
-    #[inline(always)]
     pub fn bench(&self, inputs: &[f32x8], outputs: &mut [f32x8], n: usize) {
         assert_eq!(self.num_inputs, inputs.len());
         assert_eq!(self.num_outputs, outputs.len());
-        
-        unsafe { asm!{
-            "1: call rax\n loop 1b"
-          : // no outputs
-          : "{rdi}"(self.consts.as_ptr()),
-            "{rdx}"(inputs.as_ptr()),
-            "{rbx}"(outputs.as_mut_ptr()),
-            "{rax}"(self.code.ptr()),
-            "{rcx}"(n)
-          :
-          : "intel"
-          : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}",
-            "{ymm8}", "{ymm9}", "{ymm10}", "{ymm11}", "{ymm12}", "{ymm13}", "{ymm14}", "{ymm15}"
-        } }
+
+        for _ in 0 .. n {
+            self.call(inputs, outputs);
+        }
     }
 }
 

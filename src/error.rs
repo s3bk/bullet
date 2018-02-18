@@ -1,13 +1,12 @@
 use prelude::*;
 use poly::PolyError;
-use std::fmt;
+use std::fmt::{self, Debug, Display};
 use lalrpop_util;
 
 #[derive(Debug)]
 pub enum Error {
     MissingFunction(String),
     ParseError {
-        token: String,
         pos: usize,
         expected: Vec<String>,
         input: String
@@ -21,14 +20,14 @@ pub enum Error {
     Other(String),
     Overflow
 }
-impl fmt::Display for Error {
+impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::Error::*;
         
         match *self {
             MissingFunction(ref s) => write!(f, "the function '{}' is not implemented", s),
-            ParseError { pos, ref token, ref expected, ref input } => 
-                write!(f, "the token «{}» was not one of the expected {}: {}\u{32d}{}", token, expected.iter().join(" ,"), &input[..pos+1], &input[pos+1..]),
+            ParseError { pos, ref expected, ref input } => 
+                write!(f, "expected {}: {}\u{32d}{}", expected.iter().join(" ,"), &input[..pos+1], &input[pos+1..]),
             IntegerError => write!(f, "not an integer"),
             Poly(PolyError::DivZero) => write!(f, "division by zero"),
             Undefined(ref name) => write!(f, "'{}' is not defined", name),
@@ -44,11 +43,11 @@ impl From<PolyError> for Error {
     fn from(e: PolyError) -> Error { Error::Poly(e) }
 }
 impl Error {
-    pub fn parse_error(e: lalrpop_util::ParseError<usize, (usize, &str), ()>, input: &str) -> Error {
+    pub fn parse_error<T: Debug>(e: lalrpop_util::ParseError<usize, T, &str>, input: &str) -> Error {
         use lalrpop_util::ParseError::UnrecognizedToken;
         match e {
-            UnrecognizedToken { token: Some((pos, (_, span), _end)), expected } =>
-                Error::ParseError { pos, token: span.into(), expected, input: input.into() },
+            UnrecognizedToken { token: Some((pos, _, _end)), expected } =>
+                Error::ParseError { pos, expected, input: input.into() },
             e => Error::Other(format!("Other({:?})", e))
         }
     }

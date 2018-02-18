@@ -3,8 +3,11 @@ use consts::trig_poly;
 use std::fmt::Debug;
 use itertools::Itertools;
 
+#[cfg(feature="codegen")]
 pub mod syn;
+#[cfg(feature="jit")]
 pub mod simd;
+
 pub mod glsl;
 
 #[derive(Debug, Copy, Clone)]

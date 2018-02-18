@@ -288,7 +288,7 @@ impl Hash for Poly {
 
 impl fmt::Display for Poly {
     fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
-        use display::Tokens;
-        Tokens::poly(self).fmt(w)
+        use display::*;
+        Tokens::poly(self, &Mode::Text).fmt(w)
     }
 }

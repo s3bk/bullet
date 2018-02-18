@@ -17,13 +17,10 @@
 extern crate tuple;
 extern crate itertools;
 extern crate lalrpop_util;
-#[macro_use] extern crate quote;
 extern crate math_traits;
 
-#[cfg(feature="jit")]
-extern crate memmap;
-#[cfg(feature="jit")]
-extern crate simd;
+
+
 
 macro_rules! todo {
     ($desc:expr) => ({return Err(Error::Todo($desc));})
@@ -34,7 +31,7 @@ macro_rules! bug {
 
 pub mod error;
 //pub mod expr;
-#[allow(unused_extern_crates)]
+#[allow(warnings)]
 pub mod lang { include!(concat!(env!("OUT_DIR"), "/lang.rs")); }      // the parser
 pub mod diff;      // analytical differentiation
 pub mod node;      // function graph
@@ -50,7 +47,7 @@ pub mod rt;        // runtime (various jit compilers, gpu integration)
 pub mod data;
 
 mod consts;        // numerical constants
-mod display;       // function graph representation
+pub mod display;       // function graph representation
 mod util;          // utiliy functions
 
 

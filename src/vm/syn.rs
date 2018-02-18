@@ -1,3 +1,5 @@
+#[macro_use] extern crate quote;
+
 use prelude::*;
 use compiler::Compiler;
 use vm::{Vm, Round};

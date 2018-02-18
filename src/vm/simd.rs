@@ -1,8 +1,13 @@
+extern crate memmap;
+extern crate stdsimd;
+
+#[cfg(feature="codegen")]
+use quote::{Tokens, Ident};
+
 use std::fmt;
 use compiler::Compiler;
 use vm::{Vm, Round, Cmp};
 use node::NodeRc;
-use quote::{Tokens, Ident};
 
 impl fmt::Display for Reg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -39,11 +44,12 @@ pub enum Instr {
     MaskMove(Reg, Reg, Source), // conditinal load from const i
     Cmp(Reg, Reg, Source, Cmp)
 }
+
 pub struct SimdAsm {
     pub instr: Vec<Instr>,
     pub registers: [usize; 16],
     pub used: u8,
-    pub inputs: Vec<Ident>,
+    pub inputs: Vec<String>,
     pub consts: Vec<f32>
 }
 impl SimdAsm {
@@ -189,6 +195,7 @@ impl Vm for SimdAsm {
     }
 }
 
+#[cfg(feature="codegen")]
 pub fn simd_asm(nodes: &[NodeRc], vars: &[&str]) -> Tokens
 { 
     let mut asm = SimdAsm::new();

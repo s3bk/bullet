@@ -3,6 +3,13 @@ use poly::{Poly, cmp_base};
 use itertools::Itertools;
 use std::fmt::{self, Display};
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Mode {
+    Text,
+    LaTeX
+}
+use self::Mode::*;
+
 fn int_super(i: i64) -> String {
     i.to_string().chars().map(|c| {
         match c {
@@ -38,10 +45,13 @@ impl Display for Tokens {
         Ok(())
     }
 }
-fn wrap_poly(p: &Poly) -> String {
-    let tokens = Tokens::poly(p);
+fn wrap_poly(p: &Poly, mode: &Mode) -> String {
+    let tokens = Tokens::poly(p, mode);
     if tokens.len() > 1 {
-        format!("({})", tokens)
+        match *mode {
+            Text => format!("({})", tokens),
+            LaTeX => format!("\\left( {} \\right)", tokens)
+        }
     } else {
         tokens.to_string()
     }
@@ -54,15 +64,40 @@ impl Tokens {
     pub fn len(&self) -> usize {
         self.content.len()
     }
-    pub fn push<T: fmt::Display>(&mut self, t: T) {
+    pub fn push<T: Display>(&mut self, t: T) {
         self.content.push(t.to_string());
     }
-    pub fn poly(p: &Poly) -> Tokens {
+    // add a fraction
+    pub fn push_frac<N: Display, D: Display>(&mut self, nom: N, denom: D, mode: &Mode) {
+        match *mode {
+            Text => {
+                self.push(nom);
+                self.push("/");
+                self.push(denom);
+            },
+            LaTeX => self.push(format!("\\frac{{{}}}{{{}}}", nom, denom))
+        }
+    }
+    pub fn poly(p: &Poly, mode: &Mode) -> Tokens {
         let mut tokens = Tokens::new();
         let mut elements: Vec<_> = p.factors().collect();
         elements.sort_by(|a, b| cmp_base(&a.0, &b.0));
 
         for (n, &(base, fac)) in elements.iter().enumerate() {
+            let mut mid = Tokens::new();
+            for (i, &(ref v, n)) in base.iter().enumerate() {
+                if i > 0 {
+                    mid.push("\\,");
+                }
+                mid.push(match (&**v, *mode, n) {
+                    (v, _, 1) => format!("{}", Tokens::node(v, mode)),
+                    (&Node::Poly(ref p), Text, n) => format!("{}{}", wrap_poly(p, mode), int_super(n)),
+                    (&Node::Poly(ref p), LaTeX, n) => format!("{{{}}}^{{{}}}", wrap_poly(p, mode), n),
+                    (v, Text, n) => format!("{}{}", Tokens::node(v, mode), int_super(n)),
+                    (v, LaTeX, n) => format!("{{{}}}^{{{}}}", Tokens::node(v, mode), n)
+                });
+            }
+            
             let (nom, denom) = fac.frac();
 
             if nom < 0 {
@@ -70,27 +105,22 @@ impl Tokens {
             } else if n != 0 {
                 tokens.push("+");
             }
-            if nom.abs() != 1 || base.len() == 0 {
-                tokens.push(nom.abs());
-            }
 
-            for &(ref v, n) in base.iter() {
-                let v = match **v {
-                    Node::Poly(ref p) => wrap_poly(p),
-                    ref n => Tokens::node(n).to_string()
-                };
-                if n == 1 {
-                    tokens.push(v);
-                } else {
-                    tokens.push(format!("{}{}", v, int_super(n)));
-                }
-            }
-
-            match denom {
-                1 => {},
-                d => {
-                    tokens.push("/");
-                    tokens.push(d);
+            match (nom.abs(), denom, base.len(), *mode) {
+                (n, 1, 0, _) => tokens.push(n),
+                (1, d, _, Text) => tokens.push_frac(mid, d, mode),
+                (n, d, _, Text) => {
+                    tokens.push_frac(n, d, mode);
+                    tokens.push(mid);
+                },
+                (1, 1, _, LaTeX) => tokens.push(mid),
+                (n, 1, _, LaTeX) => {
+                    tokens.push(n);
+                    tokens.push(mid);
+                },
+                (n, d, _, LaTeX) => {
+                    tokens.push_frac(n, d, mode);
+                    tokens.push(mid);
                 }
             }
         }
@@ -99,22 +129,24 @@ impl Tokens {
         }
         tokens
     }
-    pub fn node(n: &Node) -> Tokens {
+    pub fn node(n: &Node, mode: &Mode) -> Tokens {
         let mut tokens = Tokens::new();
-        match *n {
-            Node::Op(ref f) => tokens.push(f),
-            Node::Apply(ref f, ref g) => tokens.push(format!("{}({})", Tokens::node(f), Tokens::node(g))),
-            Node::Poly(ref p) => {
+        match (&*n, *mode) {
+            (&Node::Op(ref f), _) => tokens.push(f),
+            (&Node::Apply(ref f, ref g), Text) => tokens.push(format!("{}({})", Tokens::node(f, mode), Tokens::node(g, mode))),
+            (&Node::Apply(ref f, ref g), LaTeX) => tokens.push(format!("{} \\left( {} \\right)", Tokens::node(f, mode), Tokens::node(g, mode))),
+            (&Node::Poly(ref p), _) => {
                 match p.factorize() {
                     Some((p, q)) => {
-                        tokens.push(wrap_poly(&p));
-                        tokens.push(wrap_poly(&q));
+                        tokens.push(wrap_poly(&p, mode));
+                        tokens.push(wrap_poly(&q, mode));
                     },
-                    None => tokens.push(Tokens::poly(p))
+                    None => tokens.push(Tokens::poly(p, mode))
                 }
             }
-            Node::Var(ref name) => tokens.push(name),
-            Node::Tuple(ref parts) => tokens.push(format!("({})", parts.iter().map(|n| Tokens::node(n)).join(", "))),
+            (&Node::Var(ref name), _) => tokens.push(name),
+            (&Node::Tuple(ref parts), Text) => tokens.push(format!("({})", parts.iter().map(|n| Tokens::node(n, mode)).join(", "))),
+            (&Node::Tuple(ref parts), LaTeX) => tokens.push(format!(r"\left( {} \right)", parts.iter().map(|n| Tokens::node(n, mode)).join(", "))),
         }
         tokens
     }

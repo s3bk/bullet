@@ -11,27 +11,27 @@ categories = ["science"]
 description = "Supersonic Math"
 
 [dependencies]
-memmap        = { version = "0.5.2", optional=true }
-simd = { git = "https://github.com/s3bk/simd.git", optional=true }
-tuple         = { version = "0.3", features = ["impl_simd"] }
-lalrpop-util  = "0.13.1"
-regex         = "0.2.2"
-env_logger    = "0.4.3"
-itertools     = "0.6.3"
-quote         = "0.3.15"
-syn           = "0.11.11"
-math_traits   = { version = "0.1.1", git = "https://github.com/s3bk/math_traits.git" }
+memmap        = { version = "*", optional=true }
+stdsimd       = { git = "https://github.com/rust-lang-nursery/stdsimd", optional=true }
+tuple         = { git = "https://github.com/s3bk/tuple", features = ["impl_simd"] }
+lalrpop-util  = "*"
+regex         = "*"
+itertools     = "*"
+quote         = "*"
+syn           = { version = "*", optional = true }
+math_traits   = { git = "https://github.com/s3bk/math_traits" }
 
 [build-dependencies]
-lalrpop = "0.13.1"
+lalrpop = "*"
 
 [features]
 nvidia = []
-jit = ["memmap", "simd"]
+jit = ["memmap", "stdsimd"]
+codegen = ["syn"]
 default = ["jit"]
 
 [dev-dependencies]
-jack = "0.5.3"
-hound = "3.1.0"
-termion = "1.5.1"
-hiirc = "0.4.1"
+jack = "*"
+hound = "*"
+termion = "*"
+hiirc = "*"
