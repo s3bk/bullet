@@ -17,7 +17,7 @@ tuple         = { git = "https://github.com/s3bk/tuple", features = ["impl_simd"
 lalrpop-util  = "*"
 regex         = "*"
 itertools     = "*"
-quote         = "*"
+quote         = { version = "*", optional = true }
 syn           = { version = "*", optional = true }
 math_traits   = { git = "https://github.com/s3bk/math_traits" }
 
@@ -27,7 +27,7 @@ lalrpop = "*"
 [features]
 nvidia = []
 jit = ["memmap", "stdsimd"]
-codegen = ["syn"]
+codegen = ["syn", "quote"]
 default = ["jit"]
 
 [dev-dependencies]
