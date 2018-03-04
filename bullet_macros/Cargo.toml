@@ -1,0 +1,18 @@
+[package]
+name = "bullet_macros"
+version = "0.1.0"
+authors = ["Sebastian Köln <sebk@rynx.org>"]
+license = "MIT"
+repository = "https://github.com/s3bk/bullet_macros"
+homepage = "https://github.com/s3bk/bullet"
+categories = ["science"]
+description = "Supersonic Math Macros"
+
+[dependencies.bullet]
+path = "../"
+#git = "https://github.com/s3bk/bullet"
+features = ["codegen"]
+
+
+[lib]
+proc_macro = true
