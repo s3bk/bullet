@@ -2,7 +2,9 @@ extern crate memmap;
 extern crate stdsimd;
 
 #[cfg(feature="codegen")]
-use quote::{Tokens, Ident};
+use quote::{Tokens};
+#[cfg(feature="codegen")]
+use proc_macro2::Term;
 
 use std::fmt;
 use compiler::Compiler;
@@ -200,14 +202,14 @@ pub fn simd_asm(nodes: &[NodeRc], vars: &[&str]) -> Tokens
 { 
     let mut asm = SimdAsm::new();
 
-    let mut def_out = vec![]; // defines
-    let mut reg_out = vec![]; // registers
+    let mut def_out = Vec::new(); // defines
+    let mut reg_out = Vec::new(); // registers
 
     let outputs = Compiler::compile(&mut asm, nodes, vars).expect("failed to compile");
-    let args: Vec<Tokens> = outputs.iter().enumerate().map(|(i, &source)| {
-        let v: Ident = format!("out_{}", i).into();
-        def_out.push(v.clone());
-        match source {
+    let args: Vec<_> = outputs.iter().enumerate().map(|(i, &source)| {
+        let v = Term::intern(&format!("out_{}", i));
+        
+        let t = match source {
             Source::Reg(r) => {
                 let reg = format!("={{{}}}", r);
                 reg_out.push(quote!{ #reg(#v) });
@@ -221,7 +223,9 @@ pub fn simd_asm(nodes: &[NodeRc], vars: &[&str]) -> Tokens
                 let n = idx as usize / 32;
                 quote!{ let #v: f32x8 = CONSTANTS[#n]; }
             }
-        }
+        };
+        def_out.push(v);
+        t
     }).collect();
 
     let mut lines = String::new();
@@ -250,16 +254,17 @@ pub fn simd_asm(nodes: &[NodeRc], vars: &[&str]) -> Tokens
 
     let num_inputs = asm.inputs.len();
     let num_consts = asm.consts.len();
-    let s_inputs = asm.inputs;
-    let s_consts = asm.consts.iter().map(|c| quote! { #c });
-    let s_clobber = (0 .. asm.used).map(|r| format!("{{{}}}", r));
+    let inputs = asm.inputs.iter().map(|s| quote!(f32x8::splat(#s)));
+    let consts = asm.consts;
+    let clobber = (0 .. asm.used).map(|r| format!("{{ymm{}}}", r));
     
+       
     let out = quote! { unsafe {
-        let inputs: &[f32x8; #num_inputs] = &[ #( #s_inputs ),* ];
-        static CONSTANTS: [f32x8; #num_consts] = [ #( f32x8::splat(#s_consts) ),* ];
-        #( #def_out )*
-        asm!{ #lines : #reg_out(out) : "{rdi}"(CONSTANTS.as_ptr()), "{rdx}"(inputs.as_ptr()) : : "intel" : #( #s_clobber ),* }
-        ( #( #args ),* )
+        let inputs: &[f32x8; #num_inputs] = &[ #(#inputs,)* ];
+        static CONSTANTS: [f32x8; #num_consts] = [ #(#consts,)* ];
+        #(#def_out;)*
+        asm!{ #lines : : "{rdi}"(CONSTANTS.as_ptr()), "{rdx}"(inputs.as_ptr()) : : "intel" : #(#clobber),* }
+        ( #(#args),* )
     } };
     {
         use std::fs::File;

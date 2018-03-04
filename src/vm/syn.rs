@@ -1,15 +1,15 @@
-#[macro_use] extern crate quote;
-
 use prelude::*;
 use compiler::Compiler;
 use vm::{Vm, Round};
-use quote::{Tokens, Ident};
+use quote::{Tokens};
 use std::mem;
+use std::iter::once;
+use proc_macro2::{Term};
 
 struct Syn {
     tokens: Tokens,
     stored: usize,
-    inputs: Vec<Ident>
+    inputs: Vec<Term>
 }
 impl Syn {
     pub fn new() -> Syn {
@@ -23,19 +23,19 @@ impl Syn {
 
 impl Vm for Syn {
     type Var = Tokens;
-    type Storage = Ident;
+    type Storage = Term;
 
     fn make_int(&mut self, i: i64) -> Self::Var {
         let i: i16 = i.cast().unwrap();
-        quote! { Real::int(#i) }
+        quote! { <T as Real>::int(#i) }
     }
     fn make_const(&mut self, x: f64) -> Self::Var {
-        quote! { #x }
+        quote! { <T as Real>::float(#x) }
     }
     fn make_source(&mut self, name: &str) -> Self::Var {
-        let name = Ident::from(name);
-        self.inputs.push(name.clone());
-        quote! { #name }
+        let var = Term::intern(name);
+        self.inputs.push(var.clone());
+        quote! { #var }
     }
     fn make_sum(&mut self, parts: Vec<Self::Var>) -> Self::Var {
         let first = &parts[0];
@@ -47,19 +47,19 @@ impl Vm for Syn {
         let others = &parts[1..];
         quote! { #first #( .mul( #others ) )* }
     }
-    fn store(&mut self, var: &mut Self::Var, _uses: usize) -> Self::Storage {
+    fn store(&mut self, var: &mut Self::Var, uses: usize) -> Self::Storage {
         // `var` contains an expression.
         // This expression needs to be assigned to a variable, so it can be used again later.
 
         // make a new variable name
-        let name = format!("storage_{}", self.stored).into();
+        let name = Term::intern(&format!("storage_{}", self.stored));
         self.stored += 1;
 
         // replace `var` by the variable name (load does that) and get ownership of the original expression
         let var = mem::replace(var, self.load(&name));
 
         // now actually assign the expression to the variable (this is fine, as var can't be used until this function returns)
-        self.tokens.append(quote! { let #name = #var; });
+        self.tokens.append_all(once(quote! { let #name = #var; }));
 
         name
     }
@@ -68,15 +68,15 @@ impl Vm for Syn {
     }
     fn round(&mut self, x: Self::Var, mode: Round) -> Self::Var {
         match mode {
-            Round::Up => quote! { #x.ceil() },
-            Round::Down => quote! { #x.floor() }
+            Round::Up => quote! { T::ceil(#x) },
+            Round::Down => quote! { T::floor(#x) }
         }
     }
     fn div(&mut self, a: Self::Var, b: Self::Var) -> Self::Var {
         quote! { #a / #b }
     }
     fn inv(&mut self, a: Self::Var) -> Self::Var {
-        quote! { #a.inv() }
+        quote! { <T as Real>::inv(#a) }
     }
     fn step_at(&mut self, at: Self::Var, x: Self::Var) -> Self::Var {
         quote! {
@@ -97,20 +97,34 @@ pub fn syn(node: NodeRc) -> Tokens {
     let mut syn = Syn::new();
     let inner = Compiler::run(&mut syn, &node).unwrap();
     let store = syn.tokens;
-    let params = syn.inputs.iter().map(|i| quote! { #i: T });
     let args = &syn.inputs;
-    quote! {
+
+    let out = quote! {
+        #[allow(unused_imports)]
         {
             extern crate math_traits;
             use math_traits::Real;
+            use std::ops::*;
             
-            #[allow(unused_imports)]
-            fn f<T: Real>(#(#params),*) -> T {
-                use std::ops::*;
+            fn f<T: Real>(#(#args: T),*) -> T {    
                 #store
                 #inner
             }
-            f(#args)
+            f(#(#args),*)
         }
+    };
+    {
+        use std::fs::OpenOptions;
+        use std::io::Write;
+        writeln!(
+            OpenOptions::new()
+                .write(true)
+                .append(true)
+                .create(true)
+                .open("/tmp/out.rs")
+                .unwrap(),
+            "{}", out
+        ).unwrap();
     }
+    out
 }

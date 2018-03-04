@@ -13,16 +13,24 @@
 #![feature(unique)]
 #![feature(try_trait)]
 #![feature(iterator_step_by, iterator_for_each)]
-#![cfg(feature="jit")]
-#![feature(stdsimd)]
+#![cfg_attr(feature="jit", feature(stdsimd))]
 
 extern crate tuple;
 extern crate itertools;
 extern crate lalrpop_util;
 extern crate math_traits;
 
+#[cfg(feature="codegen")]
+#[macro_use] extern crate quote;
 
+#[cfg(feature="codegen")]
+extern crate proc_macro2;
 
+#[cfg(feature="jit")]
+extern crate stdsimd;
+
+#[cfg(feature="jit")]
+extern crate memmap;
 
 macro_rules! todo {
     ($desc:expr) => ({return Err(Error::Todo($desc));})
@@ -45,6 +53,7 @@ pub mod poly;      // polynomial representation
 pub mod builder;   // helps you crate function graphs
 pub mod eval;      // enables to actually get "values"
 pub mod integrate; // numerical integration
+#[cfg(feature="jit")]
 pub mod rt;        // runtime (various jit compilers, gpu integration)
 pub mod data;
 

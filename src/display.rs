@@ -86,8 +86,9 @@ impl Tokens {
         for (n, &(base, fac)) in elements.iter().enumerate() {
             let mut mid = Tokens::new();
             for (i, &(ref v, n)) in base.iter().enumerate() {
-                if i > 0 {
-                    mid.push("\\,");
+                match *mode {
+                    LaTeX if i > 0 => mid.push("\\,"),
+                    _ => {}
                 }
                 mid.push(match (&**v, *mode, n) {
                     (v, _, 1) => format!("{}", Tokens::node(v, mode)),
@@ -106,22 +107,18 @@ impl Tokens {
                 tokens.push("+");
             }
 
-            match (nom.abs(), denom, base.len(), *mode) {
+            match (nom.abs(), denom, mid.len(), *mode) {
                 (n, 1, 0, _) => tokens.push(n),
+                (1, 1, _, _) => tokens.push(mid),
                 (1, d, _, Text) => tokens.push_frac(mid, d, mode),
-                (n, d, _, Text) => {
-                    tokens.push_frac(n, d, mode);
-                    tokens.push(mid);
-                },
-                (1, 1, _, LaTeX) => tokens.push(mid),
-                (n, 1, _, LaTeX) => {
+                (n, 1, _, _) => {
                     tokens.push(n);
                     tokens.push(mid);
                 },
-                (n, d, _, LaTeX) => {
+                (n, d, _, _) => {
                     tokens.push_frac(n, d, mode);
                     tokens.push(mid);
-                }
+                },
             }
         }
         if tokens.len() == 0 {

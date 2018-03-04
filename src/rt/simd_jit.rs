@@ -1,10 +1,10 @@
 use prelude::*;
-use simd::x86::avx::f32x8;
+use stdsimd::simd::f32x8;
 use vm::simd::{SimdAsm, Source, Instr};
 use compiler::Compiler;
 use vm::{Round, Cmp};
 use rt::x86_64::{Writer, op, Mode, Reg};
-use memmap::{Mmap, Protection};
+use memmap::{Mmap, MmapOptions};
 use vm::simd::Reg as SimdReg;
 
 
@@ -26,7 +26,7 @@ impl Code {
           : "{rdi}"(self.consts.as_ptr()),
             "{rdx}"(inputs.as_ptr()),
             "{rbx}"(outputs.as_mut_ptr()),
-            "{rax}"(self.code.ptr())
+            "{rax}"(self.code.as_ptr())
           :
           : "intel"
           : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}",
@@ -102,14 +102,15 @@ pub fn jit(nodes: &[NodeRc], vars: &[&str]) -> Result<Code, Error>
         File::create("/tmp/out").unwrap().write_all(&code).unwrap();
     }*/
 
-    let mut anon_mmap = Mmap::anonymous(4096, Protection::ReadWrite).unwrap();
-    unsafe {
-        anon_mmap.as_mut_slice()[.. code.len()].copy_from_slice(&code);
-    }
-    anon_mmap.set_protection(Protection::ReadExecute).unwrap();
+    let mut anon_mmap = MmapOptions::new()
+        .len(4096)
+        .map_anon().unwrap();
+    
+    anon_mmap[.. code.len()].copy_from_slice(&code);
+    let mmap = anon_mmap.make_exec().unwrap();
     
     Ok(Code {
-        code: anon_mmap,
+        code: mmap,
         consts: asm.consts.iter().map(|&c| f32x8::splat(c)).collect(),
         num_inputs: asm.inputs.len(),
         num_outputs: outputs.len()

@@ -20,6 +20,7 @@ itertools     = "*"
 quote         = { version = "*", optional = true }
 syn           = { version = "*", optional = true }
 math_traits   = { git = "https://github.com/s3bk/math_traits" }
+proc-macro2   = { version = "*", optional = true }
 
 [build-dependencies]
 lalrpop = "*"
@@ -27,7 +28,7 @@ lalrpop = "*"
 [features]
 nvidia = []
 jit = ["memmap", "stdsimd"]
-codegen = ["syn", "quote"]
+codegen = ["syn", "quote", "proc-macro2"]
 default = ["jit"]
 
 [dev-dependencies]
@@ -35,3 +36,4 @@ jack = "*"
 hound = "*"
 termion = "*"
 hiirc = "*"
+bullet_macros = { path="bullet_macros" }
