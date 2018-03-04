@@ -13,6 +13,8 @@
 #![feature(unique)]
 #![feature(try_trait)]
 #![feature(iterator_step_by, iterator_for_each)]
+#![cfg(feature="jit")]
+#![feature(stdsimd)]
 
 extern crate tuple;
 extern crate itertools;
