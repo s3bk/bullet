@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use func::Func;
 use func::Transient::*;
 use poly::Poly;
-use lang::parse_Expr;
+use lang::ExprParser;
 use std::collections::HashMap;
 use std::iter::once;
 use diff::diff;
@@ -47,7 +47,7 @@ impl Builder {
         self.defs.insert(name.to_owned(), defn);
     }
     pub fn parse(&self, expr: &str) -> NodeResult {
-        parse_Expr(self, expr).unwrap_or_else(|e| Err(Error::parse_error(e, expr)))
+        ExprParser::new().parse(self, expr).unwrap_or_else(|e| Err(Error::parse_error(e, expr)))
     }
     pub fn int(&self, i: i64) -> NodeRc {
         self.intern(Node::Poly(Poly::int(i)))

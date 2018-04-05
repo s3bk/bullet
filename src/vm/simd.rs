@@ -4,7 +4,7 @@ extern crate stdsimd;
 #[cfg(feature="codegen")]
 use quote::{Tokens};
 #[cfg(feature="codegen")]
-use proc_macro2::Term;
+use proc_macro2::{Term, Span};
 
 use std::fmt;
 use compiler::Compiler;
@@ -207,7 +207,7 @@ pub fn simd_asm(nodes: &[NodeRc], vars: &[&str]) -> Tokens
 
     let outputs = Compiler::compile(&mut asm, nodes, vars).expect("failed to compile");
     let args: Vec<_> = outputs.iter().enumerate().map(|(i, &source)| {
-        let v = Term::intern(&format!("out_{}", i));
+        let v = Term::new(&format!("out_{}", i), Span::call_site());
         
         let t = match source {
             Source::Reg(r) => {

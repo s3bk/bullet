@@ -3,7 +3,6 @@ name = "bullet"
 version = "0.1.2"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
 build = "build.rs"
-features = ["nvidia", "jit"]
 license = "MIT"
 repository = "https://github.com/s3bk/bullet"
 homepage = "https://github.com/s3bk/bullet"

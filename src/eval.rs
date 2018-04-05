@@ -81,10 +81,10 @@ impl EvalContext {
     }
     
     pub fn run(&mut self, input: &str) -> Result<Option<String>, Error> {
-        use lang::parse_Command;
+        use lang::CommandParser;
         use self::Command::*;
         
-        let cmd = match parse_Command(&self.builder, input) {
+        let cmd = match CommandParser::new().parse(&self.builder, input) {
             Ok(r) => r?,
             Err(e) => return Err(Error::parse_error(e, input))
         };

@@ -4,7 +4,7 @@ use vm::{Vm, Round};
 use quote::{Tokens};
 use std::mem;
 use std::iter::once;
-use proc_macro2::{Term};
+use proc_macro2::{Term, Span};
 
 struct Syn {
     tokens: Tokens,
@@ -33,7 +33,7 @@ impl Vm for Syn {
         quote! { <T as Real>::float(#x) }
     }
     fn make_source(&mut self, name: &str) -> Self::Var {
-        let var = Term::intern(name);
+        let var = Term::new(name, Span::call_site());
         self.inputs.push(var.clone());
         quote! { #var }
     }
@@ -47,12 +47,12 @@ impl Vm for Syn {
         let others = &parts[1..];
         quote! { #first #( .mul( #others ) )* }
     }
-    fn store(&mut self, var: &mut Self::Var, uses: usize) -> Self::Storage {
+    fn store(&mut self, var: &mut Self::Var, _uses: usize) -> Self::Storage {
         // `var` contains an expression.
         // This expression needs to be assigned to a variable, so it can be used again later.
 
         // make a new variable name
-        let name = Term::intern(&format!("storage_{}", self.stored));
+        let name = Term::new(&format!("storage_{}", self.stored), Span::call_site());
         self.stored += 1;
 
         // replace `var` by the variable name (load does that) and get ownership of the original expression

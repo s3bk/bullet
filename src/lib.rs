@@ -2,9 +2,7 @@
 #![feature(concat_idents)]
 #![feature(trace_macros)]
 #![feature(box_syntax)]
-#![feature(i128_type)]
 #![feature(inclusive_range)]
-#![feature(inclusive_range_syntax)]
 #![feature(cfg_target_feature)]
 #![feature(slice_patterns)]
 #![feature(box_patterns)]
@@ -14,6 +12,7 @@
 #![feature(try_trait)]
 #![feature(iterator_step_by, iterator_for_each)]
 #![cfg_attr(feature="jit", feature(stdsimd))]
+#![cfg_attr(feature="nvidia", feature(ptr_internals))]
 
 extern crate tuple;
 extern crate itertools;
@@ -42,7 +41,7 @@ macro_rules! bug {
 pub mod error;
 //pub mod expr;
 #[allow(warnings)]
-pub mod lang { include!(concat!(env!("OUT_DIR"), "/lang.rs")); }      // the parser
+pub mod lang { include!(concat!(env!("OUT_DIR"), "/lang.rs")); }      
 pub mod diff;      // analytical differentiation
 pub mod node;      // function graph
 pub mod func;      // analytical functions and operators
