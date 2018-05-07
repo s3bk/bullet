@@ -110,6 +110,7 @@ impl Tokens {
             match (nom.abs(), denom, mid.len(), *mode) {
                 (n, 1, 0, _) => tokens.push(n),
                 (1, 1, _, _) => tokens.push(mid),
+                (1, d, 0, Text) => tokens.push_frac(1, d, mode),
                 (1, d, _, Text) => tokens.push_frac(mid, d, mode),
                 (n, 1, _, _) => {
                     tokens.push(n);
