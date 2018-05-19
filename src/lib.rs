@@ -18,6 +18,9 @@ extern crate tuple;
 extern crate itertools;
 extern crate lalrpop_util;
 extern crate math_traits;
+extern crate num_bigint;
+extern crate num_traits;
+extern crate num_rational;
 
 #[cfg(feature="codegen")]
 #[macro_use] extern crate quote;
@@ -45,13 +48,13 @@ pub mod lang { include!(concat!(env!("OUT_DIR"), "/lang.rs")); }
 pub mod diff;      // analytical differentiation
 pub mod node;      // function graph
 pub mod func;      // analytical functions and operators
-pub mod rational;  // rational numbers
 pub mod compiler;  // compiles function graph for the vm
 pub mod vm;        // the virtual machine
 pub mod poly;      // polynomial representation
 pub mod builder;   // helps you crate function graphs
 pub mod eval;      // enables to actually get "values"
 pub mod integrate; // numerical integration
+pub mod numbers;
 #[cfg(feature="jit")]
 pub mod rt;        // runtime (various jit compilers, gpu integration)
 pub mod data;
@@ -69,5 +72,5 @@ pub mod prelude {
     pub use node::*;
     pub use builder::Builder;
     pub use itertools::Itertools;
-    pub use rational::Rational;
+    pub use numbers::*;
 }

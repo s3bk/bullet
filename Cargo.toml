@@ -19,7 +19,10 @@ itertools     = "*"
 quote         = { version = "*", optional = true }
 syn           = { version = "*", optional = true }
 math_traits   = { git = "https://github.com/s3bk/math_traits" }
-proc-macro2   = { version = "*", optional = true }
+proc-macro2   = { version = "0.3.6", optional = true }
+num-bigint    = "*"
+num-traits    = "*"
+num-rational  = "*"
 
 [build-dependencies]
 lalrpop = "*"

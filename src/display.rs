@@ -1,4 +1,4 @@
-use node::Node;
+use prelude::*;
 use poly::{Poly, cmp_base};
 use itertools::Itertools;
 use std::fmt::{self, Display};
@@ -10,7 +10,7 @@ pub enum Mode {
 }
 use self::Mode::*;
 
-fn int_super(i: i64) -> String {
+fn int_super(i: &Int) -> String {
     i.to_string().chars().map(|c| {
         match c {
             '-' => '⁻',
@@ -85,39 +85,42 @@ impl Tokens {
 
         for (n, &(base, fac)) in elements.iter().enumerate() {
             let mut mid = Tokens::new();
-            for (i, &(ref v, n)) in base.iter().enumerate() {
+            for (i, &(ref v, ref n)) in base.iter().enumerate() {
                 match *mode {
                     LaTeX if i > 0 => mid.push("\\,"),
                     _ => {}
                 }
-                mid.push(match (&**v, *mode, n) {
-                    (v, _, 1) => format!("{}", Tokens::node(v, mode)),
-                    (&Node::Poly(ref p), Text, n) => format!("{}{}", wrap_poly(p, mode), int_super(n)),
-                    (&Node::Poly(ref p), LaTeX, n) => format!("{{{}}}^{{{}}}", wrap_poly(p, mode), n),
-                    (v, Text, n) => format!("{}{}", Tokens::node(v, mode), int_super(n)),
-                    (v, LaTeX, n) => format!("{{{}}}^{{{}}}", Tokens::node(v, mode), n)
+                mid.push(match (&**v, *mode) {
+                    (v, _) if *n == 1 => format!("{}", Tokens::node(v, mode)),
+                    (&Node::Poly(ref p), Text) => format!("{}{}", wrap_poly(p, mode), int_super(n)),
+                    (&Node::Poly(ref p), LaTeX) => format!("{{{}}}^{{{}}}", wrap_poly(p, mode), n),
+                    (v, Text) => format!("{}{}", Tokens::node(v, mode), int_super(n)),
+                    (v, LaTeX) => format!("{{{}}}^{{{}}}", Tokens::node(v, mode), n)
                 });
             }
             
             let (nom, denom) = fac.frac();
 
-            if nom < 0 {
-                tokens.push("-");
+            if nom.is_negative() {
+                tokens.push("−");
             } else if n != 0 {
                 tokens.push("+");
             }
 
-            match (nom.abs(), denom, mid.len(), *mode) {
-                (n, 1, 0, _) => tokens.push(n),
-                (1, 1, _, _) => tokens.push(mid),
-                (1, d, 0, Text) => tokens.push_frac(1, d, mode),
-                (1, d, _, Text) => tokens.push_frac(mid, d, mode),
-                (n, 1, _, _) => {
-                    tokens.push(n);
+            let nom = nom.abs();
+            let nom_is_one = nom == 1;
+            let denom_is_one = denom == 1;
+            match (nom_is_one, denom_is_one, mid.len(), *mode) {
+                (_,    true, 0, _) => tokens.push(nom),
+                (true, true, _, _) => tokens.push(mid),
+                (true, _,    0, Text) => tokens.push_frac(1, denom, mode),
+                (true, _,    _, Text) => tokens.push_frac(mid, denom, mode),
+                (_,    true, _, _) => {
+                    tokens.push(nom);
                     tokens.push(mid);
                 },
-                (n, d, _, _) => {
-                    tokens.push_frac(n, d, mode);
+                (_,    _,    _, _) => {
+                    tokens.push_frac(nom, denom, mode);
                     tokens.push(mid);
                 },
             }

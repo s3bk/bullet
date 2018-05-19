@@ -49,20 +49,19 @@ impl Builder {
     pub fn parse(&self, expr: &str) -> NodeResult {
         ExprParser::new().parse(self, expr).unwrap_or_else(|e| Err(Error::parse_error(e, expr)))
     }
-    pub fn int(&self, i: i64) -> NodeRc {
-        self.intern(Node::Poly(Poly::int(i)))
+    pub fn int<T: Into<Int>>(&self, i: T) -> NodeRc {
+        self.intern(Node::Poly(Poly::int(i.into())))
     }
     
     /// decimal number
     pub fn decimal(&self, n: &str) -> NodeResult {
-        let i: i64 = n.parse().map_err(|_| Error::IntegerError)?;
-        Ok(self.int(i))
+        Ok(self.int(Int::parse(n, 10)?))
     }
     pub fn decimal_float(&self, s: &str) -> NodeResult {
         let dp = s.find('.').unwrap();
-        let div = 10i64.pow((s.len() - dp - 1) as u32);
-        let i: i64 = s[..dp].parse().map_err(|_| Error::IntegerError)?;
-        let j: i64 = s[dp+1..].parse().map_err(|_| Error::IntegerError)?;
+        let div = Int::from(10).pow((s.len() - dp - 1) as u32);
+        let i = Int::parse(&s[..dp], 10)?;
+        let j = Int::parse(&s[dp+1..], 10)?;
         self.add(self.int(i), self.div(self.int(j), self.int(div))?)
     }
 
@@ -124,8 +123,8 @@ impl Builder {
     pub fn pow(&self, a: NodeRc, b: NodeRc) -> NodeResult {
         self.uniform(a, b, |a, b| {
             if let Node::Poly(ref p) = *b {
-                if let Some(i) = p.as_int().and_then(|i| i.cast()) {          
-                    return Ok(self.pow_i(a, i)?);
+                if let Some(i) = p.to_int() {          
+                    return self.pow_i(a, i);
                 }
             }
             
@@ -134,8 +133,11 @@ impl Builder {
         })
     }
     /// a ^ i
-    pub fn pow_i(&self, a: NodeRc, i: i32) -> NodeResult {
-        self.uniform_one(a, i, |a, i| Ok(self.poly(poly(a).pow_i(self, i)?)))
+    pub fn pow_i<I>(&self, a: NodeRc, i: I) -> NodeResult
+        where I: Into<Int>
+    {
+        let i: Int = i.into();
+        self.uniform_one(a, i, |a, i| Ok(self.poly(poly(a).pow(self, i)?)))
     }
 
     /// f(g)
@@ -199,13 +201,13 @@ impl Builder {
             },
             Node::Tuple(ref parts) => self.tuple(parts.iter().map(|n| self.substitute(n, map))),
             Node::Poly(ref p) => self.sum(
-                p.factors().map(|(base, &fac)| {
+                p.factors().map(|(base, fac)| {
                     self.product(
-                        once(Ok(self.rational(fac)))
+                        once(Ok(self.rational(fac.clone())))
                             .chain(
-                                base.iter().map(|&(ref v, p)| self.pow_i(
+                                base.iter().map(|&(ref v, ref p)| self.pow_i(
                                     self.substitute(v, map)?,
-                                    p.cast().expect("too high")
+                                    p.clone()
                                 ))
                             )
                     )

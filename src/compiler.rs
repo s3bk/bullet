@@ -95,24 +95,23 @@ impl<'a, V: Vm + 'a> Compiler<'a, V> {
         println!("{}", node);
         let mut var = match *node {
             Node::Poly(ref poly) => {
-                if let Some(i) = poly.as_int() {
-                    return Ok(self.vm.make_int(i));
+                if let Some(i) = poly.to_int() {
+                    return Ok(self.vm.make_int(i.as_i64().ok_or(Error::Overflow)?));
                 }
                 let mut sum = Vec::new();
-                for (base, &fac) in poly.factors() {
-                    // multible cases here..
-                    let fac = match fac.as_int() {
+                for (base, fac) in poly.factors() {
+                    let fac = match fac.as_i64() {
                         Some(1) => None,
                         Some(i) => Some(self.vm.make_int(i)),
-                        None => Some(self.vm.make_const(fac.to_f64()))
+                        None => Some(self.vm.make_const(fac.as_f64()))
                     };
-
                     let base = match base.len() {
                         0 => None,
                         _ => {
                             let mut prod = Vec::with_capacity(base.len());
-                            for &(ref v, n) in base.iter() {
+                            for &(ref v, ref n) in base.iter() {
                                 let v = self.generate(v)?;
+                                let n = n.as_i32().ok_or(Error::Overflow)?;
                                 prod.push(match n {
                                     0 => continue, // skip it
                                     1 => v,

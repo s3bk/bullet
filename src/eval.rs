@@ -28,9 +28,9 @@ impl EvalContext {
             Node::Poly(ref p) => {
                 let mut sum = 0.0;
                 for (base, r) in p.factors() {
-                    let mut prod = r.to_f64();
-                    for &(ref f, n) in base.iter() {
-                        prod *= self.eval(f)?.powi(n.cast().ok_or(Error::Overflow)?);
+                    let mut prod = r.as_f64();
+                    for &(ref f, ref n) in base.iter() {
+                        prod *= self.eval(f)?.powf(n.as_f64());
                     }
                     sum += prod;
                 }

@@ -26,7 +26,7 @@ pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc, Error
                 _ => todo!("diff non-ops")
             }
         },
-        Node::Var(ref s) => Ok(builder.int((s == var) as i64)),
+        Node::Var(ref s) => Ok(builder.int(s == var)),
         Node::Poly(ref p) => Ok(builder.poly(diff_poly(builder, p, var)?)),
         Node::Tuple(ref parts) => builder.tuple(parts.iter().map(|p| diff(builder, p, var))),
         _ => todo!("diff ???")
@@ -35,13 +35,13 @@ pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc, Error
 
 pub fn diff_poly(builder: &Builder, poly: &Poly, var: &str) -> Result<Poly, Error> {
     let mut sum = Poly::int(0);
-    for (base, &fac) in poly.factors() {
-        let f: Result<Vec<Poly>, Error> = base.iter().map(|&(ref f, n)| {
-            Poly::from_node(f.clone()).pow_i(builder, n as i32)
+    for (base, fac) in poly.factors() {
+        let f: Result<Vec<Poly>, Error> = base.iter().map(|&(ref f, ref n)| {
+            Poly::from_node(f.clone()).pow(builder, n.clone())
         }).collect(); // [f₀, f₁, f₂, ...]
-        let df: Result<Vec<Poly>, Error> = base.iter().map(|&(ref f, n)| Ok(
-            Poly::from_node(f.clone()).pow_i(builder, n as i32 -1)?
-            * n * Poly::from_node(diff(builder, f, var)?) // ∂ₓ f(x)ⁿ = n f(x)ⁿ⁻¹ ∂ₓ f(x)
+        let df: Result<Vec<Poly>, Error> = base.iter().map(|&(ref f, ref n)| Ok(
+            Poly::from_node(f.clone()).pow(builder, n.clone() - 1)?
+            * n.clone() * Poly::from_node(diff(builder, f, var)?) // ∂ₓ f(x)ⁿ = n f(x)ⁿ⁻¹ ∂ₓ f(x)
         )).collect(); // [∂ₓ f₀, ∂ₓ f₁, ∂ₓ f₂, ...]
 
         let (f, df) = (f?, df?);
@@ -50,7 +50,7 @@ pub fn diff_poly(builder: &Builder, poly: &Poly, var: &str) -> Result<Poly, Erro
         }
 
         for i in 0 .. f.len() {
-            let mut prod = Poly::rational(fac);
+            let mut prod = Poly::rational(fac.clone());
             for j in 0 .. f.len() {
                 if i == j {
                     prod = prod * df[j].clone();
