@@ -187,6 +187,12 @@ impl Mul for Rational {
         Rational(self.0 * rhs.0)
     }
 }
+impl Mul<i32> for Rational {
+    type Output = Rational;
+    fn mul(self, rhs: i32) -> Rational {
+        Rational(self.0 * BigInt::from(rhs))
+    }
+}
 impl<'a, 'b> Mul<&'b Rational> for &'a Rational {
     type Output = Rational;
     fn mul(self, rhs: &'b Rational) -> Rational {
@@ -205,7 +211,7 @@ impl DivAssign<Int> for Rational {
 }
 impl Div<Rational> for Rational {
     type Output = Rational;
-    fn div(mut self, rhs: Rational) -> Rational {
+    fn div(self, rhs: Rational) -> Rational {
         Rational(self.0 / rhs.0)
     }
 }

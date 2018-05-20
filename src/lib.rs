@@ -3,7 +3,6 @@
 #![feature(trace_macros)]
 #![feature(box_syntax)]
 #![feature(inclusive_range)]
-#![feature(cfg_target_feature)]
 #![feature(slice_patterns)]
 #![feature(box_patterns)]
 #![feature(proc_macro)]

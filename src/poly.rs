@@ -85,15 +85,17 @@ impl Poly {
                 // 1 / (0^-i)
                 return Err(PolyError::DivZero.into());
             }
-            return Ok(Poly::rational(r.pow(i)));
+            if i.abs() < 4 { 
+                return Ok(Poly::rational(r.pow(i)));
+            }
         }
         
-        if self.elements.len() == 1 {
-            let (base, fac) = self.elements.into_iter().next().unwrap();
-            let base = base.into_iter().map(|(v, n)| (v, n * i)).collect();
-            return Ok(Poly::one(base, fac.pow(i)));
-        }
         if i > 0 && i < 4 {
+            if self.elements.len() == 1 {
+                let (base, fac) = self.elements.into_iter().next().unwrap();
+                let base = base.into_iter().map(|(v, n)| (v, n * i)).collect();
+                return Ok(Poly::one(base, fac.pow(i)));
+            }
             return Ok(self.pow_n(i as u32));
         }
         Ok(Poly::one(vec![(builder.poly(self), i.into())], 1.into()))
