@@ -10,21 +10,21 @@ categories = ["science"]
 description = "Supersonic Math"
 
 [dependencies]
-memmap        = { version = "*", optional=true }
+memmap        = { version = "0.6.2", optional=true }
 tuple         = { version = "0.4", features = ["impl_simd"] }
-lalrpop-util  = "*"
-regex         = "*"
-itertools     = "*"
-quote         = { version = "*", optional = true }
-syn           = { version = "*", optional = true }
-math_traits   = { version = "*" }
+lalrpop-util  = "0.15.2"
+regex         = "0.2.11"
+itertools     = "0.7.8"
+quote         = { version = "0.5.2", optional = true }
+syn           = { version = "0.14.2", optional = true }
+math_traits   = { version = "0.1.5" }
 proc-macro2   = { version = "0.3.6", optional = true }
-num-bigint    = "*"
-num-traits    = "*"
-num-rational  = "*"
+num-bigint    = "0.2.0"
+num-traits    = "0.2.5"
+num-rational  = "0.2.1"
 
 [build-dependencies]
-lalrpop = "*"
+lalrpop = "0.15.2"
 
 [features]
 nvidia = []
@@ -33,8 +33,7 @@ codegen = ["syn", "quote", "proc-macro2"]
 default = ["jit"]
 
 [dev-dependencies]
-jack = "*"
-hound = "*"
-termion = "*"
-hiirc = "*"
+jack = "0.6.0"
+hound = "3.4.0"
+termion = "1.5.1"
 bullet_macros = { path="bullet_macros" }
