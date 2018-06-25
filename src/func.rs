@@ -6,7 +6,8 @@ pub enum Transient {
     Sin,
     Cos,
     Log,
-    Exp
+    Exp,
+    Gamma
 }
 use self::Transient::*;
 
@@ -32,7 +33,8 @@ impl fmt::Display for Func {
                     Sin => "sin",
                     Cos => "cos",
                     Log => "log",
-                    Exp => "exp"
+                    Exp => "exp",
+                    Gamma => "Γ",
                 };
                 f.write_str(name)
             },

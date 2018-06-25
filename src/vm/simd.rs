@@ -1,5 +1,4 @@
 extern crate memmap;
-extern crate stdsimd;
 
 #[cfg(feature="codegen")]
 use quote::{Tokens};

@@ -26,6 +26,7 @@ pub Op: NodeResult = {
 pub Pow: NodeResult = {
     <b:Term> "^" <e:Pow> => builder.pow(b?, e?),
     <l:Term> <r:Pow> => builder.apply(l?, r?),
+    <b:Term> "!" => builder.factorial(b?),
     Term
 };
 

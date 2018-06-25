@@ -2,12 +2,12 @@ use std::fmt;
 use func::Func;
 use std::ops::Deref;
 use std::collections::hash_map::{HashMap, DefaultHasher, Entry};
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use poly::Poly;
 use std::hash::{Hash, Hasher};
 
 pub struct Cache {
-    items: HashMap<u64, NodeRc>
+    items: HashMap<u64, Weak<(Node, u64)>>
 }
 impl Cache {
     pub fn new() -> Cache {
@@ -17,15 +17,28 @@ impl Cache {
         let mut h = DefaultHasher::new();
         node.hash(&mut h);
         let hash = h.finish();
-        match self.items.entry(hash) {
-            Entry::Vacant(v) => v.insert(NodeRc {
-                inner: Rc::new((node, hash))
-            }).clone(),
-            Entry::Occupied(o) => {
-                assert_eq!(o.get().inner.0, node);
-                o.get().clone()
+        let rc = match self.items.entry(hash) {
+            Entry::Vacant(v) => {
+                let rc = Rc::new((node, hash));
+                v.insert(Rc::downgrade(&rc));
+                rc
             }
-        }
+            Entry::Occupied(mut o) => {
+                match o.get().upgrade() {
+                    Some(rc) => {
+                        assert_eq!(rc.0, node);
+                        rc
+                    },
+                    None => {
+                        let rc = Rc::new((node, hash));
+                        o.insert(Rc::downgrade(&rc));
+                        rc
+                    }
+                }
+            }
+        };
+        
+        NodeRc { inner: rc }
     }
 }
 #[derive(Clone, Debug, Ord, PartialOrd)]

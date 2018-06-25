@@ -28,9 +28,6 @@ extern crate num_rational;
 extern crate proc_macro2;
 
 #[cfg(feature="jit")]
-extern crate stdsimd;
-
-#[cfg(feature="jit")]
 extern crate memmap;
 
 macro_rules! todo {

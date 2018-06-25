@@ -139,7 +139,12 @@ impl Builder {
         let i: Int = i.into();
         self.uniform_one(a, i, |a, i| Ok(self.poly(poly(a).pow(self, i)?)))
     }
-
+    
+    /// a!
+    pub fn factorial(&self, a: NodeRc) -> NodeResult {
+        todo!("factorial")
+    }
+    
     /// f(g)
     pub fn func(&self, f: Func, g: NodeRc) -> NodeResult {
         self.apply(self.op(f)?, g)

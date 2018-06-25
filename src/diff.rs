@@ -19,6 +19,7 @@ pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc, Error
                                 builder.pow_i(g.clone(), -1)?,
                             Exp => // d/dx exp(g(x)) = exp(g(x)) g'(x)
                                 builder.func(Exp.into(), g.clone())?,
+                            _ => todo!("missing functions")
                         },
                         dg       
                     )

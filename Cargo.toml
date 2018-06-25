@@ -1,24 +1,23 @@
 [package]
 name = "bullet"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Sebastian Köln <sebk@rynx.org>"]
 build = "build.rs"
 license = "MIT"
-repository = "https://github.com/s3bk/bullet"
-homepage = "https://github.com/s3bk/bullet"
+repository = "https://gitlab.com/sebk/bullet.git"
+homepage = "https://gitlab.com/sebk/bullet"
 categories = ["science"]
 description = "Supersonic Math"
 
 [dependencies]
 memmap        = { version = "*", optional=true }
-stdsimd       = { git = "https://github.com/rust-lang-nursery/stdsimd", optional=true }
-tuple         = { git = "https://github.com/s3bk/tuple", features = ["impl_simd"] }
+tuple         = { version = "0.4", features = ["impl_simd"] }
 lalrpop-util  = "*"
 regex         = "*"
 itertools     = "*"
 quote         = { version = "*", optional = true }
 syn           = { version = "*", optional = true }
-math_traits   = { git = "https://github.com/s3bk/math_traits" }
+math_traits   = { version = "*" }
 proc-macro2   = { version = "0.3.6", optional = true }
 num-bigint    = "*"
 num-traits    = "*"
@@ -29,7 +28,7 @@ lalrpop = "*"
 
 [features]
 nvidia = []
-jit = ["memmap", "stdsimd"]
+jit = ["memmap"]
 codegen = ["syn", "quote", "proc-macro2"]
 default = ["jit"]
 

@@ -43,7 +43,8 @@ impl EvalContext {
                         Sin => x.sin(),
                         Cos => x.cos(),
                         Log => x.ln(),
-                        Exp => x.exp()
+                        Exp => x.exp(),
+                        _   => todo!("missing function")
                     }),
                     _ => todo!("apply non transients")
                 }
