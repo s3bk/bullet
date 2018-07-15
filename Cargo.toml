@@ -11,7 +11,7 @@ description = "Supersonic Math"
 
 [dependencies]
 memmap        = { version = "0.6.2", optional=true }
-tuple         = { version = "0.4", features = ["impl_simd"] }
+tuple         = { version = "0.4" }
 lalrpop-util  = "0.15.2"
 regex         = "0.2.11"
 itertools     = "0.7.8"
@@ -28,7 +28,7 @@ lalrpop = "0.15.2"
 
 [features]
 nvidia = []
-jit = ["memmap"]
+jit = ["memmap", "tuple/impl_simd"]
 codegen = ["syn", "quote", "proc-macro2"]
 default = ["jit"]
 

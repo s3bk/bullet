@@ -3,6 +3,7 @@
 #![feature(core_intrinsics)]
 #![feature(box_syntax)]
 #![feature(proc_macro)]
+#![feature(proc_macro_non_items)]
 
 extern crate tuple;
 extern crate math_traits;
