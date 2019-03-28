@@ -11,7 +11,7 @@ description = "Supersonic Math"
 
 [dependencies]
 memmap        = { version = "0.6.2", optional=true }
-tuple         = { version = "0.4", path = "../tuple" }
+tuple         = { version = "0.4", git = "https://gitlab.com/sebk/tuple" }
 lalrpop-util  = "0.15.2"
 regex         = "0.2.11"
 itertools     = "0.7.8"
