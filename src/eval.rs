@@ -66,7 +66,7 @@ impl EvalContext {
     #[cfg(target_feature = "avx")]
     fn bench(&self, expr: NodeRc) -> Result<String, Error> {
         use std::time::Instant;
-        use stdsimd::simd::f32x8;
+        use packed_simd::f32x8;
         use rt::simd_jit::jit;
         
         let code = jit(&[expr], &["x"])?;

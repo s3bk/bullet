@@ -1,16 +1,15 @@
 #![feature(non_ascii_idents)]
-#![feature(conservative_impl_trait)]
 #![feature(core_intrinsics)]
 #![feature(box_syntax)]
-#![feature(proc_macro)]
-#![feature(proc_macro_non_items)]
+#![feature(proc_macro_hygiene)]
 
 extern crate tuple;
 extern crate bullet_macros;
 extern crate math_traits;
+extern crate bullet;
 
 use tuple::T2;
-use math::integrate::Integration;
+use bullet::integrate::Integration;
 use bullet_macros::math;
 use math_traits::Real;
 

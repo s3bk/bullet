@@ -90,7 +90,7 @@ impl Poly {
             }
         }
         
-        if i > 0 && i < 4 {
+        if i > -4 && i < 4 {
             if self.elements.len() == 1 {
                 let (base, fac) = self.elements.into_iter().next().unwrap();
                 let base = base.into_iter().map(|(v, n)| (v, n * i)).collect();

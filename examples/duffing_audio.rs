@@ -1,3 +1,4 @@
+/*
 #![feature(proc_macro)]
 
 extern crate tuple;
@@ -7,14 +8,12 @@ extern crate math_traits;
 extern crate bullet_macros;
 
 use bullet_macros::math;
-use tuple::T2;
+use tuple::*;
 use math_traits::Real;
 use std::sync::mpsc::channel;
 use termion::event::Key;
 use termion::input::TermRead;
-use jack::client::{Client, ClientOptions, ClosureProcessHandler, ProcessScope, AsyncClient};
-use jack::port::{AudioInSpec, AudioOutSpec, AudioOutPort, AudioInPort};
-use jack::jack_enums::JackControl;
+use jack::{Client, ClientOptions, ClosureProcessHandler, ProcessScope, AsyncClient, AudioIn, AudioOut, Control};
 
 #[derive(Copy, Clone)]
 struct DuffingParams {
@@ -39,9 +38,9 @@ fn main() {
     let (tx, rx) = channel();
 
     let (client, _) = Client::new("Duffing", ClientOptions::empty()).unwrap();
-    let port_in = client.register_port("duffing_in", AudioInSpec).unwrap();
-    let mut port_out_x = client.register_port("duffing_out_x", AudioOutSpec).unwrap();
-    let mut port_out_y = client.register_port("duffing_out_y", AudioOutSpec).unwrap();
+    let port_in = client.register_port("duffing_in", AudioIn).unwrap();
+    let mut port_out_x = client.register_port("duffing_out_x", AudioOut).unwrap();
+    let mut port_out_y = client.register_port("duffing_out_y", AudioOut).unwrap();
     
     let dt = 880.0 / (client.sample_rate() as f32);
     let mut x = T2(0.2, 0.2);
@@ -52,21 +51,19 @@ fn main() {
         if let Ok(params) = rx.try_recv() {
             p = params;
         }
-    
-        let mut port_out_x = AudioOutPort::new(&mut port_out_x, ps);
-        let mut port_out_y = AudioOutPort::new(&mut port_out_y, ps);
-        let port_in = AudioInPort::new(&port_in, ps);
-        for (&sample_in, sample_out) in port_in.iter().zip(T2(port_out_x.iter_mut(), port_out_y.iter_mut())) {
+        
+        let iter = T3(port_in.as_slice(ps).iter(), port_out_x.as_mut_slice(ps).iter_mut(), port_out_y.as_mut_slice(ps).iter_mut());
+        for T3(&sample_in, sample_out_x, sample_out_y) in iter {
             let drive = sample_in * scale;
             let dx_dt = T2(
                 x.1,
                 p.epsilon * drive - p.lambda * x.1 - x.0 * (p.alpha + (x.0 * x.0 * p.beta))
             );
             x += dx_dt * dt;
-            *sample_out.0 = (x.0 * scale_inv).clamp(-1.0, 1.0);
-            *sample_out.1 = (x.1 * scale_inv).clamp(-1.0, 1.0);
+            *sample_out_x = (x.0 * scale_inv).clamp(-1.0, 1.0);
+            *sample_out_y = (x.1 * scale_inv).clamp(-1.0, 1.0);
         }
-        JackControl::Continue
+        Control::Continue
     });
     let _active_client = AsyncClient::new(client, (), process).unwrap();
     
@@ -121,3 +118,5 @@ fn main() {
         println!("selected: {}\r", name);
     }
 }
+*/
+fn main(){}

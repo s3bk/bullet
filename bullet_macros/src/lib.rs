@@ -1,5 +1,3 @@
-#![feature(proc_macro)]
-
 extern crate bullet;
 extern crate proc_macro;
 

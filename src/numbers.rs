@@ -50,7 +50,9 @@ impl Int {
         }
         
         let mut y = x.clone(); // holds the power so far
-        while n > 1 {
+        n -= 1;
+        
+        while n > 0 {
             if n & 1 == 1 {
                 y *= &x;
             }
@@ -59,8 +61,8 @@ impl Int {
             n /= 2;
         }
 
-        assert_eq!(n, 1);
-        x * y // final multiplication
+        assert_eq!(n, 0, "Int::pow: exponent should be 0 by now");
+        y
     }
     pub fn abs(self) -> Int {
         Int(self.0.abs())

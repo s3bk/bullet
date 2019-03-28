@@ -1,9 +1,9 @@
 extern crate bullet;
-extern crate simd;
+extern crate packed_simd as simd;
 
 use bullet::rt::jit;
 use bullet::prelude::Builder;
-use simd::x86::avx::f32x8;
+use simd::f32x8;
 
 fn main() {
     let b = Builder::new();

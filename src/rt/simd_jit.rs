@@ -1,5 +1,5 @@
 use prelude::*;
-use stdsimd::simd::f32x8;
+use packed_simd::f32x8;
 use vm::simd::{SimdAsm, Source, Instr};
 use compiler::Compiler;
 use vm::{Round, Cmp};
