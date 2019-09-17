@@ -96,13 +96,11 @@ impl Poly {
                 let (base, fac) = self.elements.into_iter().next().unwrap();
                 let base = base.into_iter().map(|(v, n)| (v, n * i)).collect();
                 return Ok(Poly::one(base, fac.pow(i)));
-                dbg!(1);
             }
             if i > 0 {
                 return Ok(self.pow_n(i as u32));
             }
         }
-        dbg!(2);
         Ok(Poly::one(vec![(builder.poly(self), i.into())], 1.into()))
     }
     pub fn pow_n(mut self, mut n: u32) -> Poly {
