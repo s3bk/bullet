@@ -18,6 +18,8 @@ extern crate num_bigint;
 extern crate num_traits;
 extern crate num_rational;
 
+#[macro_use] extern crate log;
+
 #[cfg(feature="codegen")]
 #[macro_use] extern crate quote;
 

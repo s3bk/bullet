@@ -76,6 +76,7 @@ impl Poly {
         }
     }
     pub fn pow_i(self, builder: &Builder, i: i32) -> Result<Poly, Error> {
+        debug!("Poly::pow_i({}, _, {})", self, i);
         if i == 0 {
             return Ok(Poly::int(1));
         }
@@ -95,9 +96,13 @@ impl Poly {
                 let (base, fac) = self.elements.into_iter().next().unwrap();
                 let base = base.into_iter().map(|(v, n)| (v, n * i)).collect();
                 return Ok(Poly::one(base, fac.pow(i)));
+                dbg!(1);
             }
-            return Ok(self.pow_n(i as u32));
+            if i > 0 {
+                return Ok(self.pow_n(i as u32));
+            }
         }
+        dbg!(2);
         Ok(Poly::one(vec![(builder.poly(self), i.into())], 1.into()))
     }
     pub fn pow_n(mut self, mut n: u32) -> Poly {
@@ -190,6 +195,7 @@ impl Add for Poly {
 impl Mul for Poly {
     type Output = Poly;
     fn mul(self, rhs: Poly) -> Poly {
+        debug!("Poly::mul({}, {}", self, rhs);
         let mut elements = HashMap::with_capacity(max(self.elements.len(), rhs.elements.len()));
         for ((a_base, a_fac), (b_base, b_fac)) in self.elements.iter().cartesian_product(rhs.elements.iter()) {
             // multiply base vector by adding powers
