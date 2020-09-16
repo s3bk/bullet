@@ -63,13 +63,13 @@ impl EvalContext {
         self.defines.get(var).cloned()
     }
 
-    #[cfg(target_feature = "avx")]
+    #[cfg(all(target_feature = "avx", feature="jit"))]
     fn bench(&self, expr: NodeRc) -> Result<String, Error> {
         use std::time::Instant;
         use packed_simd::f32x8;
-        use rt::simd_jit::jit;
+        use crate::rt::simd_jit::compile;
         
-        let code = jit(&[expr], &["x"])?;
+        let code = compile(&[expr], &["x"])?;
         let data_in = vec![f32x8::splat(self.get("x").unwrap_or(0.1) as f32); code.num_inputs];
         let mut data_out = vec![f32x8::splat(0.0); code.num_outputs];
 
@@ -98,7 +98,7 @@ impl EvalContext {
             },
             Expr(e) => Some(e.to_string()),
             Eval(e) => Some(self.eval(&e)?.to_string()),
-            #[cfg(target_feature="avx")]
+            #[cfg(all(target_feature = "avx", feature="jit"))]
             Bench(e) => Some(self.bench(e)?),
             _ => None
         })

@@ -8,11 +8,11 @@ repository = "https://gitlab.com/sebk/bullet.git"
 homepage = "https://gitlab.com/sebk/bullet"
 categories = ["science"]
 description = "Supersonic Math"
-epoch = "2018"
+edition = "2015"
 
 [dependencies]
 memmap        = { version = "0.6.2", optional=true }
-tuple         = { version = "0.4", git = "https://gitlab.com/sebk/tuple" }
+tuple         = { git = "https://github.com/s3bk/tuple" }
 lalrpop-util  = "0.15.2"
 regex         = "0.2.11"
 itertools     = "0.7.8"
@@ -26,15 +26,18 @@ num-rational  = "0.2.1"
 packed_simd   = { version = "0.3", optional = true }
 log           = "*"
 env_logger    = "*"
+parity-wasm   = { version = "0.40", optional = true }
+cuda          = { path = "../cuda", optional = true }
 
 [build-dependencies]
 lalrpop = "0.15.2"
 
 [features]
-nvidia = []
+nvidia = ["cuda"]
 jit = ["memmap", "tuple/impl_simd", "packed_simd"]
 codegen = ["syn", "quote", "proc-macro2"]
-default = ["jit"]
+wasm = ["parity-wasm"]
+default = []
 
 [dev-dependencies]
 hound = "3.4.0"

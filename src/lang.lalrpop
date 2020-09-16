@@ -70,8 +70,8 @@ Name: &'input str = r"\pL+";
 
 pub CommaS = Comma<Name>;
 pub Command: Result<Command<'input>, Error> = {
-    "def" <f:r"\pL+"> "(" <a:CommaS> ")" ":=" <e:Expr> => Ok(Command::Define(f, a, e?)),
-    "def" <f:r"\pL+"> ":=" <e:Expr> => Ok(Command::Define(f, vec![], e?)),
+    "def" <f:Name> "(" <a:CommaS> ")" ":=" <e:Expr> => Ok(Command::Define(f, a, e?)),
+    "def" <f:Name> ":=" <e:Expr> => Ok(Command::Define(f, vec![], e?)),
     "eval" <e:Expr> => Ok(Command::Eval(e?)),
     "bench" <e:Expr> => Ok(Command::Bench(e?)),
     <e:Expr> => Ok(Command::Expr(e?)),

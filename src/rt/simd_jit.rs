@@ -44,7 +44,7 @@ impl Code {
     }
 }
 
-pub fn jit(nodes: &[NodeRc], vars: &[&str]) -> Result<Code, Error>
+pub fn compile(nodes: &[NodeRc], vars: &[&str]) -> Result<Code, Error>
 {
     let mut asm = SimdAsm::new();
     let outputs = Compiler::compile(&mut asm, nodes, vars)?;

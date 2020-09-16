@@ -59,8 +59,8 @@ impl Ptx {
 
 .entry main(.param.b64 src, .param.u64 dst) {{
     .reg.u64            data_in, data_out;
-    .reg.u64	        n, m, o;
-    .reg.u32	        a, b, c, d;
+    .reg.u64            n, m, o;
+    .reg.u32            a, b, c, d;
     .reg.f32            _r<{num_regs}>;
 
     ld.param.u64        data_in,    [src];

@@ -18,6 +18,9 @@ pub enum PolyError {
     DivZero
 }
 fn add_to<'a>(e: Entry<'a, Base, Rational>, r: Rational) {
+    if r.is_zero() {
+        return;
+    }
     match e {
         Entry::Vacant(v) => {
             v.insert(r);

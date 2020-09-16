@@ -5,9 +5,14 @@ use itertools::Itertools;
 
 #[cfg(feature="codegen")]
 pub mod syn;
+
 #[cfg(feature="jit")]
 pub mod simd;
 
+#[cfg(feature="wasm")]
+pub mod wasm;
+
+#[cfg(feature="glsl")]
 pub mod glsl;
 
 #[derive(Debug, Copy, Clone)]
@@ -55,7 +60,10 @@ pub trait Vm {
     fn div(&mut self, a: Self::Var, b: Self::Var) -> Self::Var;
 
     // 1 / a
-    fn inv(&mut self, a: Self::Var) -> Self::Var;
+    fn inv(&mut self, a: Self::Var) -> Self::Var {
+        let one = self.make_const(1.0);
+        self.div(one, a)
+    }
     
     fn add(&mut self, a: Self::Var, b: Self::Var) -> Self::Var {
         self.make_sum(vec![a, b])
@@ -170,7 +178,7 @@ pub trait Vm {
         let mut y = self.add(z, minus_one_half);
         let y2 = self.copy(&mut y);
 
-        let poly = trig_poly::SIN_5_PI;
+        let poly = trig_poly::SIN_4_PI;
         let n = poly.len() as i32;
         // actually I lied earlier. we *could* now scale again by 2 pi and use the original polynom,
         // but we can instead scale the constant terms of the polynom, and get the same result

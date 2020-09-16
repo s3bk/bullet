@@ -18,6 +18,9 @@ extern crate num_bigint;
 extern crate num_traits;
 extern crate num_rational;
 
+#[cfg(feature="wasm")]
+extern crate parity_wasm;
+
 #[macro_use] extern crate log;
 
 #[cfg(feature="codegen")]
