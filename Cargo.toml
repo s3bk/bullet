@@ -27,7 +27,7 @@ packed_simd   = { version = "0.3", optional = true }
 log           = "*"
 env_logger    = "*"
 parity-wasm   = { version = "0.40", optional = true }
-cuda          = { path = "../cuda", optional = true }
+cuda          = { git = "https://github.com/s3bk/cuda", optional = true }
 
 [build-dependencies]
 lalrpop = "0.15.2"
