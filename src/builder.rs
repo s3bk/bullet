@@ -1,12 +1,12 @@
-use prelude::*;
+use crate::prelude::*;
 use std::cell::RefCell;
-use func::Func;
-use func::Transient::*;
-use poly::Poly;
-use lang::ExprParser;
+use crate::func::Func;
+use crate::func::Transient::*;
+use crate::poly::Poly;
+use crate::lang::ExprParser;
 use std::collections::HashMap;
 use std::iter::once;
-use diff::diff;
+use crate::diff::diff;
 
 pub type NodeResult = Result<NodeRc, Error>;
 
@@ -141,7 +141,7 @@ impl Builder {
     }
     
     /// a!
-    pub fn factorial(&self, a: NodeRc) -> NodeResult {
+    pub fn factorial(&self, _a: NodeRc) -> NodeResult {
         todo!("factorial")
     }
     

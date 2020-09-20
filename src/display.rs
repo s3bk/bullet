@@ -1,5 +1,5 @@
-use prelude::*;
-use poly::{Poly, cmp_base};
+use crate::prelude::*;
+use crate::poly::{Poly, cmp_base};
 use itertools::Itertools;
 use std::fmt::{self, Display};
 

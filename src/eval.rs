@@ -1,5 +1,7 @@
-use prelude::*;
+use crate::prelude::*;
 use std::collections::HashMap;
+use crate::func::Transient::*;
+use crate::func::Func;
 
 
 pub enum Command<'a> {
@@ -22,8 +24,6 @@ impl EvalContext {
         }
     }
     pub fn eval(&self, node: &Node) -> Result<f64, Error> {
-        use func::Transient::*;
-        use func::Func;
         match *node {
             Node::Poly(ref p) => {
                 let mut sum = 0.0;
@@ -82,7 +82,7 @@ impl EvalContext {
     }
     
     pub fn run(&mut self, input: &str) -> Result<Option<String>, Error> {
-        use lang::CommandParser;
+        use crate::lang::CommandParser;
         use self::Command::*;
         
         let cmd = match CommandParser::new().parse(&self.builder, input) {

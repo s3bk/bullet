@@ -1,7 +1,6 @@
-use prelude::*;
-use poly::PolyError;
+use crate::prelude::*;
+use crate::poly::PolyError;
 use std::fmt::{self, Debug, Display};
-use lalrpop_util;
 
 #[derive(Debug)]
 pub enum Error {

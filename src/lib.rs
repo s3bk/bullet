@@ -9,17 +9,6 @@
 #![cfg_attr(feature="jit", feature(stdsimd, llvm_asm))]
 #![cfg_attr(feature="nvidia", feature(ptr_internals))]
 
-extern crate tuple;
-extern crate itertools;
-extern crate lalrpop_util;
-extern crate math_traits;
-extern crate num_bigint;
-extern crate num_traits;
-extern crate num_rational;
-
-#[cfg(feature="wasm")]
-extern crate parity_wasm;
-
 #[macro_use] extern crate log;
 
 #[cfg(feature="codegen")]
@@ -63,14 +52,13 @@ mod consts;        // numerical constants
 pub mod display;       // function graph representation
 mod util;          // utiliy functions
 
-
 pub mod prelude {
-    pub use error::Error;
+    pub use crate::error::Error;
     pub use math_traits::*;
     pub use tuple::*;
-    pub use util::*;
-    pub use node::*;
-    pub use builder::Builder;
+    pub use crate::util::*;
+    pub use crate::node::*;
+    pub use crate::builder::Builder;
     pub use itertools::Itertools;
-    pub use numbers::*;
+    pub use crate::numbers::*;
 }

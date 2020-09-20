@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
-use node::Node;
-use func::Func;
+use crate::node::Node;
+use crate::func::Func;
 
 #[derive(Debug)]
 pub enum Expr {

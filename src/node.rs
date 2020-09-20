@@ -1,9 +1,9 @@
 use std::fmt;
-use func::Func;
+use crate::func::Func;
 use std::ops::Deref;
 use std::collections::hash_map::{HashMap, DefaultHasher, Entry};
 use std::rc::{Rc, Weak};
-use poly::Poly;
+use crate::poly::Poly;
 use std::hash::{Hash, Hasher};
 
 pub struct Cache {
@@ -97,7 +97,7 @@ pub enum Node {
 
 impl fmt::Display for Node {
     fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
-        use display::*;
+        use crate::display::*;
         Tokens::node(self, &Mode::Text).fmt(w)
     }
 }

@@ -1,6 +1,6 @@
-use prelude::*;
-use compiler::Compiler;
-use vm::{Vm, Round};
+use crate::prelude::*;
+use crate::compiler::Compiler;
+use super::{Vm, Round};
 use quote::{Tokens};
 use std::mem;
 use std::iter::once;

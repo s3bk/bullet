@@ -1,5 +1,5 @@
-use prelude::*;
-use consts::trig_poly;
+use crate::prelude::*;
+use crate::consts::trig_poly;
 use std::fmt::Debug;
 use itertools::Itertools;
 
@@ -37,7 +37,7 @@ pub trait Vm {
     type Storage: Debug;
 
     // functions that need to be implemented
-    fn make_const(&mut self, f64) -> Self::Var;
+    fn make_const(&mut self, c: f64) -> Self::Var;
     fn make_source(&mut self, name: &str) -> Self::Var;
     fn make_sum(&mut self, parts: Vec<Self::Var>) -> Self::Var {
         parts.into_iter().fold1(|a, b| self.add(a, b)).expect("empty sum")

@@ -50,11 +50,11 @@ fn main() {
     };
     let mut data_source = Integration::new(
         duffing(params), // the function to integrate
-        T2(1.0, 1.0), // initial value
+        T2(1.0f32, 1.0f32), // initial value
         0.0, // inital time
         440. / spec.sample_rate as f32, // step size,
         f32::PI / params.omega
-    ).map(|v| v * T2(0.2, 0.05));
+    ).map(|v| v * T2(0.2f322, 0.05f32));
     
     for value in data_source.take(spec.sample_rate as usize * 600) {
         let value: T2<i16, i16> = value.map(|f| 

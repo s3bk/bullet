@@ -4,7 +4,7 @@ use std::fmt;
 use num_rational::{BigRational};
 use num_bigint::{BigInt, Sign};
 use num_traits::{ToPrimitive, Zero, One, Signed};
-use error::Error;
+use crate::error::Error;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug)]
 pub struct Int(BigInt);

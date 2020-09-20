@@ -1,4 +1,4 @@
-use prelude::*;
+use crate::prelude::*;
 use std::iter::once;
 use std::collections::hash_map::{HashMap, Entry, Iter};
 use std::ops::{Add, Mul, MulAssign};
@@ -309,7 +309,7 @@ impl Hash for Poly {
 
 impl fmt::Display for Poly {
     fn fmt(&self, w: &mut fmt::Formatter) -> fmt::Result {
-        use display::*;
+        use crate::display::*;
         Tokens::poly(self, &Mode::Text).fmt(w)
     }
 }

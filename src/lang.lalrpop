@@ -1,7 +1,7 @@
-use builder::{Builder, NodeResult};
-use func::Func;
-use eval::Command;
-use error::Error;
+use crate::builder::{Builder, NodeResult};
+use crate::func::Func;
+use crate::eval::Command;
+use crate::error::Error;
 
 grammar<'b>(builder: &'b Builder);
 

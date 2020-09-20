@@ -1,5 +1,5 @@
 use std::ops::*;
-use prelude::*;
+use crate::prelude::*;
 
 pub struct Integration<V, F, N> {
     f:  F,

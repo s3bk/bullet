@@ -1,13 +1,7 @@
-extern crate bullet;
-extern crate env_logger;
-extern crate itertools;
-
-use std::fs;
-use itertools::Itertools;
-
-
 #[cfg(feature="wasm")]
 fn main() {
+    use std::fs;
+    use itertools::Itertools;
     use bullet::builder::Builder;
     use bullet::vm::wasm::Wasm;
     use bullet::compiler::Compiler;

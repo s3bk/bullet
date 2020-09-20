@@ -1,8 +1,8 @@
-use prelude::*;
+use crate::prelude::*;
 use std::collections::hash_map::{HashMap, Entry};
-use node::{NodeRc, Node};
-use func::{Func, Transient};
-use vm::Vm;
+use crate::node::{NodeRc, Node};
+use crate::func::{Func, Transient};
+use crate::vm::Vm;
 
 pub struct Compiler<'a, V: Vm + 'a> {
     uses: HashMap<&'a Node, usize>,

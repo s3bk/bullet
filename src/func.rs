@@ -1,5 +1,5 @@
 use std::fmt;
-use prelude::*;
+use crate::prelude::*;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub enum Transient {

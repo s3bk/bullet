@@ -1,11 +1,10 @@
-extern crate bullet;
-extern crate packed_simd as simd;
-
-use bullet::rt::jit;
-use bullet::prelude::Builder;
-use simd::f32x8;
-
+#[cfg(feature="jit")]
 fn main() {
+    extern crate packed_simd;
+    use bullet::packed_simd::jit;
+    use bullet::prelude::Builder;
+    use packed_simd::f32x8;
+
     let b = Builder::new();
     let f = b.parse("x+1").unwrap();
     let g = b.parse("x-1").unwrap();
@@ -18,3 +17,6 @@ fn main() {
         println!("{:?} {:?} {:?}", x, out[0], out[1]);
     }
 }
+
+#[cfg(not(feature="jit"))]
+fn main() {}

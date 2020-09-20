@@ -1,7 +1,7 @@
-use prelude::*;
-use poly::Poly;
-use func::*;
-use func::Transient::*;
+use crate::prelude::*;
+use crate::poly::Poly;
+use crate::func::*;
+use crate::func::Transient::*;
 
 pub fn diff(builder: &Builder, node: &NodeRc, var: &str) -> Result<NodeRc, Error> {
     match **node {

@@ -1,5 +1,5 @@
 pub mod array;
-pub use self::array::*;
+pub use array::*;
 use std::marker::PhantomData;
 
 pub struct BorrowMut<'a>{_m: PhantomData<&'a ()>}

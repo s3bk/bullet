@@ -1,4 +1,4 @@
-use data::*;
+use super::*;
 use std::ops::*;
 
 /// runtime Array 

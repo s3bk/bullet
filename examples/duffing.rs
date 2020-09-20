@@ -25,7 +25,7 @@ fn duffing(ɛ: f32, λ: f32, Ω: f32, α: f32, β: f32)
 fn main() {
     for p in Integration::new(
         duffing(7.72, 0.2, 1.0, 0.0, 1.0), // the function to integrate
-        T2(1.0, 1.0), // initial value
+        T2(1.0f32, 1.0f32), // initial value
         0.0, // inital time
         1.0e-3, // step size,
         f32::PI // wrap point for t

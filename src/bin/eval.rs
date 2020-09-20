@@ -1,8 +1,3 @@
-extern crate bullet;
-extern crate env_logger;
-extern crate itertools;
-
-use std::io::{stdin, BufRead};
 use bullet::eval::EvalContext;
 use itertools::Itertools;
 
