@@ -34,9 +34,10 @@ lalrpop = "0.15.2"
 
 [features]
 nvidia = ["cuda"]
-jit = ["memmap", "tuple/impl_simd", "packed_simd"]
+simd = ["tuple/impl_simd", "packed_simd"]
 codegen = ["syn", "quote", "proc-macro2"]
 wasm = ["parity-wasm"]
+jit = ["memmap", "simd"]
 default = []
 
 [dev-dependencies]

@@ -20,7 +20,7 @@ impl Code {
         assert_eq!(self.num_inputs, inputs.len());
         assert_eq!(self.num_outputs, outputs.len());
         
-        unsafe { asm!{
+        unsafe { llvm_asm!{
             "call rax"
           : // no outputs
           : "{rdi}"(self.consts.as_ptr()),

@@ -18,6 +18,7 @@ pub fn math(t: TokenStream) -> TokenStream {
     vm::syn::syn(parse(t)).to_string().parse().expect("failed to parse")
 }
 
+#[cfg(feature="simd")]
 #[proc_macro]
 pub fn math_asm(t: TokenStream) -> TokenStream {
     vm::simd::simd_asm(&[parse(t)], &["x"]).to_string().parse().expect("failed to parse")

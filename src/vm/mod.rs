@@ -6,7 +6,7 @@ use itertools::Itertools;
 #[cfg(feature="codegen")]
 pub mod syn;
 
-#[cfg(feature="jit")]
+#[cfg(feature="simd")]
 pub mod simd;
 
 #[cfg(feature="wasm")]
