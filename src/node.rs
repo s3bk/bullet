@@ -1,69 +1,40 @@
 use std::fmt;
 use crate::func::Func;
 use std::ops::Deref;
-use std::collections::hash_map::{HashMap, DefaultHasher, Entry};
-use std::rc::{Rc, Weak};
+use std::collections::HashSet;
+use std::rc::{Rc};
 use crate::poly::Poly;
-use std::hash::{Hash, Hasher};
 
 pub struct Cache {
-    items: HashMap<u64, Weak<(Node, u64)>>
+    items: HashSet<Rc<Node>>
 }
 impl Cache {
     pub fn new() -> Cache {
-        Cache { items: HashMap::new() }
+        Cache { items: HashSet::new() }
     }
     pub fn intern(&mut self, node: Node) -> NodeRc {
-        let mut h = DefaultHasher::new();
-        node.hash(&mut h);
-        let hash = h.finish();
-        let rc = match self.items.entry(hash) {
-            Entry::Vacant(v) => {
-                let rc = Rc::new((node, hash));
-                v.insert(Rc::downgrade(&rc));
-                rc
-            }
-            Entry::Occupied(mut o) => {
-                match o.get().upgrade() {
-                    Some(rc) => {
-                        assert_eq!(rc.0, node);
-                        rc
-                    },
-                    None => {
-                        let rc = Rc::new((node, hash));
-                        o.insert(Rc::downgrade(&rc));
-                        rc
-                    }
-                }
-            }
+        let inner = if let Some(rc) = self.items.get(&node) {
+            rc.clone()
+        } else {
+            let rc = Rc::new(node);
+            self.items.insert(rc.clone());
+            rc
         };
-        
-        NodeRc { inner: rc }
+        NodeRc { inner }
     }
 }
-#[derive(Clone, Debug, Ord, PartialOrd)]
+#[derive(Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash)]
 pub struct NodeRc {
-    inner: Rc<(Node, u64)>,
+    inner: Rc<Node>,
 }
 impl Deref for NodeRc {
     type Target = Node;
-    fn deref(&self) -> &Node { &self.inner.0 }
-}
-impl PartialEq for NodeRc {
-    fn eq(&self, rhs: &NodeRc) -> bool {
-        self.inner.1 == rhs.inner.1
-    }
-}
-impl Eq for NodeRc {}
-impl Hash for NodeRc {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.inner.1);
-    }
+    fn deref(&self) -> &Node { &self.inner }
 }
 
 impl fmt::Display for NodeRc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.inner.0.fmt(f)
+        self.inner.fmt(f)
     }
 }
 
