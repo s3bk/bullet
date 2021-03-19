@@ -5,6 +5,8 @@ An attempt at a computer algbra system written in Rust
 
 
 ### Building:
+Bullet makes use of unstable features, so a nightly rustc is needed to compile it.
+
 To build it, you will need a CPU supporting `avx` and enable it:
 
 Write the following into `math/.cargo/config` to enable it just here:
