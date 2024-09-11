@@ -23,7 +23,6 @@ proc-macro2   = { version = "0.3.6", optional = true }
 num-bigint    = "0.2.0"
 num-traits    = "0.2.5"
 num-rational  = "0.2.1"
-packed_simd   = { version = "0.3", optional = true }
 log           = "*"
 env_logger    = "*"
 parity-wasm   = { version = "0.40", optional = true }
@@ -34,14 +33,14 @@ lalrpop = "0.15.2"
 
 [features]
 nvidia = ["cuda"]
-simd = ["tuple/impl_simd", "packed_simd"]
+simd = ["tuple/impl_simd"]
 codegen = ["syn", "quote", "proc-macro2"]
 wasm = ["parity-wasm"]
 jit = ["memmap", "simd"]
+avx = []
 default = []
 
 [dev-dependencies]
 hound = "3.4.0"
 termion = "1.5.1"
 bullet_macros = { path="bullet_macros" }
-packed_simd = "0.3"

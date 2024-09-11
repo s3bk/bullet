@@ -1,12 +1,11 @@
-use prelude::*;
-use packed_simd::f32x8;
-use vm::simd::{SimdAsm, Source, Instr};
-use compiler::Compiler;
-use vm::{Round, Cmp};
-use rt::x86_64::{Writer, op, Mode, Reg};
+use crate::prelude::*;
+use crate::vm::simd::{SimdAsm, Source, Instr};
+use crate::compiler::Compiler;
+use crate::vm::{Round, Cmp, simd::Reg as SimdReg};
+use crate::rt::x86_64::{Writer, op, Mode, Reg};
 use memmap::{Mmap, MmapOptions};
-use vm::simd::Reg as SimdReg;
-
+use std::simd::f32x8;
+use std::arch::asm;
 
 pub struct Code {
     consts: Vec<f32x8>,
@@ -20,17 +19,28 @@ impl Code {
         assert_eq!(self.num_inputs, inputs.len());
         assert_eq!(self.num_outputs, outputs.len());
         
-        unsafe { llvm_asm!{
-            "call rax"
-          : // no outputs
-          : "{rdi}"(self.consts.as_ptr()),
-            "{rdx}"(inputs.as_ptr()),
-            "{rbx}"(outputs.as_mut_ptr()),
-            "{rax}"(self.code.as_ptr())
-          :
-          : "intel"
-          : "{ymm0}", "{ymm1}", "{ymm2}", "{ymm3}", "{ymm4}", "{ymm5}", "{ymm6}", "{ymm7}",
-            "{ymm8}", "{ymm9}", "{ymm10}", "{ymm11}", "{ymm12}", "{ymm13}", "{ymm14}", "{ymm15}"
+        unsafe { asm!{
+            "call rax",
+            in("rdi") self.consts.as_ptr(),
+            in("rdx") inputs.as_ptr(),
+            in("rcx") outputs.as_mut_ptr(),
+            in("rax") self.code.as_ptr(),
+            out("ymm0") _,
+            out("ymm1") _,
+            out("ymm2") _,
+            out("ymm3") _,
+            out("ymm4") _,
+            out("ymm5") _,
+            out("ymm6") _,
+            out("ymm7") _,
+            out("ymm8") _,
+            out("ymm9") _,
+            out("ymm10") _,
+            out("ymm11") _,
+            out("ymm12") _,
+            out("ymm13") _,
+            out("ymm14") _,
+            out("ymm15") _
         } }
     }
     
@@ -59,6 +69,7 @@ pub fn compile(nodes: &[NodeRc], vars: &[&str]) -> Result<Code, Error>
     let mut writer = Writer::new();
     for instr in asm.instr.iter() {
         match *instr {
+            //Instr::Move(r0, s)         => writer.vex(op::MOV,   reg(r0), 0,       mode(s), None),
             Instr::Add(r0, r1, s)      => writer.vex(op::ADD,   reg(r0), reg(r1), mode(s), None),
             Instr::Sub(r0, r1, s)      => writer.vex(op::SUB,   reg(r0), reg(r1), mode(s), None),
             Instr::Mul(r0, r1, s)      => writer.vex(op::MUL,   reg(r0), reg(r1), mode(s), None),
@@ -90,7 +101,7 @@ pub fn compile(nodes: &[NodeRc], vars: &[&str]) -> Result<Code, Error>
             }
         };
 
-        writer.vex(op::WRITE, reg(r), 0, Mode::Memory(Reg::RBX, i as i32 * 32), None);
+        writer.vex(op::WRITE, reg(r), 0, Mode::Memory(Reg::RCX, i as i32 * 32), None);
         asm.drop(r);
     }
     

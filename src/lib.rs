@@ -1,12 +1,8 @@
-#![feature(const_fn)]
 #![feature(concat_idents)]
 #![feature(trace_macros)]
-#![feature(box_syntax)]
 #![feature(box_patterns)]
-#![feature(asm)]
-#![feature(try_trait)]
 #![feature(proc_macro_hygiene)]
-#![cfg_attr(feature="jit", feature(stdsimd, llvm_asm))]
+#![cfg_attr(feature="jit", feature(portable_simd))]
 #![cfg_attr(feature="nvidia", feature(ptr_internals))]
 
 #[macro_use] extern crate log;
@@ -19,9 +15,6 @@ extern crate proc_macro2;
 
 #[cfg(feature="jit")]
 extern crate memmap;
-
-#[cfg(feature="jit")]
-extern crate packed_simd;
 
 macro_rules! todo {
     ($desc:expr) => ({return Err(Error::Todo($desc));})

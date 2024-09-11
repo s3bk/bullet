@@ -1,6 +1,5 @@
 #[cfg(feature="jit")]
 fn main() {
-    extern crate packed_simd;
     use bullet::packed_simd::jit;
     use bullet::prelude::Builder;
     use packed_simd::f32x8;

@@ -4,6 +4,7 @@ use crate::func::Transient::*;
 use crate::func::Func;
 
 
+#[derive(Debug)]
 pub enum Command<'a> {
     Define(&'a str, Vec<&'a str>, NodeRc),
     Expr(NodeRc),
@@ -49,7 +50,11 @@ impl EvalContext {
                     _ => todo!("apply non transients")
                 }
             },
-            Node::Op(_) => todo!("?"),
+            Node::Op(Func::Definition(_, ref node)) => self.eval(node),
+            Node::Op(ref op) => {
+                dbg!(op);
+                todo!("?")
+            }
             Node::Var(ref s) => self.defines.get(s).cloned().ok_or(Error::Undefined(s.clone())),
             _ => unimplemented!()
         }
@@ -66,7 +71,7 @@ impl EvalContext {
     #[cfg(all(target_feature = "avx", feature="jit"))]
     fn bench(&self, expr: NodeRc) -> Result<String, Error> {
         use std::time::Instant;
-        use packed_simd::f32x8;
+        use std::simd::f32x8;
         use crate::rt::simd_jit::compile;
         
         let code = compile(&[expr], &["x"])?;
@@ -83,7 +88,6 @@ impl EvalContext {
     
     pub fn run(&mut self, input: &str) -> Result<Option<String>, Error> {
         use crate::lang::CommandParser;
-        use self::Command::*;
         
         let cmd = match CommandParser::new().parse(&self.builder, input) {
             Ok(r) => r?,
@@ -92,14 +96,14 @@ impl EvalContext {
 
         #[allow(unreachable_patterns)]
         Ok(match cmd {
-            Define(f, args, expr) => {
+            Command::Define(f, args, expr) => {
                 self.builder.define(f, &args, expr);
                 None
             },
-            Expr(e) => Some(e.to_string()),
-            Eval(e) => Some(self.eval(&e)?.to_string()),
+            Command::Expr(e) => Some(e.to_string()),
+            Command::Eval(e) => Some(self.eval(&e)?.to_string()),
             #[cfg(all(target_feature = "avx", feature="jit"))]
-            Bench(e) => Some(self.bench(e)?),
+            Command::Bench(e) => Some(self.bench(e)?),
             _ => None
         })
     }

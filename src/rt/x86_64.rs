@@ -38,6 +38,7 @@ pub mod op {
     use super::Prefix::*;
     use super::SimdPrefix::*;
     
+    pub const MOV: Opcode = (None, P_0F, 0x28);
     pub const ADD: Opcode = (None, P_0F, 0x58);
     pub const SUB: Opcode = (S_66, P_0F, 0x5C);
     pub const MUL: Opcode = (None, P_0F, 0x59);

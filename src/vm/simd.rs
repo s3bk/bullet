@@ -6,9 +6,9 @@ use quote::{Tokens};
 use proc_macro2::{Term, Span};
 
 use std::fmt;
-use compiler::Compiler;
-use vm::{Vm, Round, Cmp};
-use node::NodeRc;
+use crate::compiler::Compiler;
+use crate::vm::{Vm, Round, Cmp};
+use crate::node::NodeRc;
 
 impl fmt::Display for Reg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -87,7 +87,7 @@ impl SimdAsm {
         println!("{:40} {:?}", format!("{:?}", i), self.registers);
         self.instr.push(i);
     }
-    fn fold(&mut self, mut parts: Vec<Source>, f: &Fn(Reg, Reg, Source) -> Instr) -> Source {
+    fn fold(&mut self, mut parts: Vec<Source>, f: impl Fn(Reg, Reg, Source) -> Instr) -> Source {
         // get a non-const source
         let (skip, mut r_last) = parts.iter().enumerate().filter_map(|(i, p)| {
             match *p {

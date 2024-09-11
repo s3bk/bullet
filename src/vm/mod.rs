@@ -12,9 +12,6 @@ pub mod simd;
 #[cfg(feature="wasm")]
 pub mod wasm;
 
-#[cfg(feature="glsl")]
-pub mod glsl;
-
 #[derive(Debug, Copy, Clone)]
 pub enum Round {
     Up,
@@ -32,7 +29,6 @@ pub enum Cmp {
 }
 
 pub trait Vm {
-    #[must_use]
     type Var: Debug;
     type Storage: Debug;
 
